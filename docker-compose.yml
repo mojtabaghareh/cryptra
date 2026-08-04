@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  # پایگاه داده گرافی (برای ذخیره Event Graph)
+  neo4j:
+    image: neo4j:5-enterprise
+    container_name: cryptra_neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+      - NEO4J_AUTH=neo4j/secret_password
+    volumes:
+      - neo4j_data:/data
+    restart: unless-stopped
+
+  # حافظه کش (برای جلسات و داده‌های لحظه‌ای)
+  redis:
+    image: redis:7-alpine
+    container_name: cryptra_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  # (در آینده سرویس Backend و Frontend به اینجا اضافه می‌شوند)
+
+volumes:
+  neo4j_data:
