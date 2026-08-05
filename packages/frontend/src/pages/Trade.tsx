@@ -1,5 +1,5 @@
 // ============================================================
-// Trade.tsx (نسخه‌ی پریمیوم با Glassmorphism و Reflection Pre-Check)
+// Trade.tsx (نسخه‌ی نهایی - پریمیوم با Reflection Pre-Check)
 // ============================================================
 
 import React, { useState } from 'react';
@@ -14,7 +14,6 @@ export default function Trade() {
   const [showWarning, setShowWarning] = useState(false);
 
   const handleTrade = () => {
-    // شبیه‌سازی بررسی رفتار قبل از معامله
     setShowWarning(true);
   };
 
@@ -116,7 +115,6 @@ export default function Trade() {
           </div>
         </div>
 
-        {/* دکمه تعویض مسیر */}
         <div className="px-4 pb-4">
           <button className="w-full glass py-2 rounded-lg flex items-center justify-center gap-2 border border-border-glass hover:border-accent transition-colors">
             <span className="text-secondary text-sm">Route via 1inch</span>
@@ -158,7 +156,7 @@ export default function Trade() {
         {isSwap ? t('Swap') : t('Buy')}
       </button>
 
-      {/* هشدار بازتاب (Reflection Warning) پریمیوم */}
+      {/* هشدار بازتاب پریمیوم */}
       {showWarning && (
         <div className="mt-4 glass-card border border-warning/30 animate-in fade-in slide-in-from-bottom-4 duration-300">
           <div className="flex items-start gap-4">
