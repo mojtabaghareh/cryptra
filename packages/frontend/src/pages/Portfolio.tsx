@@ -1,5 +1,5 @@
 // ============================================================
-// Portfolio.tsx (نسخه‌ی Premium با طراحی شیشه‌ای و نئون)
+// Portfolio.tsx (نسخه‌ی نهایی - پریمیوم با Glassmorphism)
 // ============================================================
 
 import React, { useState, useEffect } from 'react';
@@ -22,7 +22,6 @@ export default function Portfolio() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // شبیه‌سازی دریافت داده‌های پورتفولیو
     setTimeout(() => {
       const mockAssets: Asset[] = [
         { symbol: 'ETH', name: 'Ethereum', balance: 2.5, valueUsd: 8625, change24h: 1.8, icon: '⟠', color: '#627EEA' },
