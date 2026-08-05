@@ -2,6 +2,8 @@
 Cryptra یک **لایه هوش مالی (Financial Intelligence Layer)** است که روی تمام پلتفرم‌های مالی قرار می‌گیرد و به کاربران کمک می‌کند **کیفیت تصمیم‌های مالی خود را در طول زمان درک و بهبود دهند.**
 
 > **Mission:** *"We don’t help users trade. We help users understand how they decide."*
+
+
 ---
 
 ## 📦 ویژگی‌های اصلی
