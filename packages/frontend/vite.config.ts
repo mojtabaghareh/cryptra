@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig({
+  base: '/cryptra/',   // ← این خط را حتماً اضافه کن
   plugins: [react()],
   resolve: {
     alias: {
@@ -10,7 +11,6 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
     open: true,
   },
 });
