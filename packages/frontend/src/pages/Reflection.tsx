@@ -1,5 +1,5 @@
 // ============================================================
-// Reflection.tsx (نسخه‌ی Premium با Glassmorphism و Insights)
+// Reflection.tsx (نسخه‌ی نهایی - پریمیوم با Insights)
 // ============================================================
 
 import React, { useState, useEffect } from 'react';
@@ -13,7 +13,6 @@ export default function Reflection() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // شبیه‌سازی دریافت داده از API
     setTimeout(() => {
       setReplay({
         weekNumber: 32,
