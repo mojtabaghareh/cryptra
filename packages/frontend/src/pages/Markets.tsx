@@ -5,9 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { BinanceService, BinancePrice } from '../../services/BinanceService';
-
-export default function Markets() {
+import { BinanceService } from '../../services/index.js';
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [prices, setPrices] = useState<BinancePrice[]>([]);
