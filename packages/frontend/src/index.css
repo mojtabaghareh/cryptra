@@ -1,5 +1,5 @@
 /* ============================================================
-   index.css (نسخه نهایی - Premium Design System)
+   index.css (نسخه نهایی و پریمیوم - سیستم طراحی کامل)
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -209,4 +209,4 @@ h1, h2, h3, h4, h5, h6 {
 .flex-col { flex-direction: column; }
 .items-center { align-items: center; }
 .justify-between { justify-content: space-between; }
-.justify-center { justify-content: center; } 
+.justify-center { justify-content: center; }
