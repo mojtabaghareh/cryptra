@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { TradeHistoryService, Trade } from '../../services/index.ts';
+import { TradeHistoryService, Trade } from '../services';
 
 export default function Replay() {
   const { t } = useTranslation();
