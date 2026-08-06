@@ -1,24 +1,43 @@
 // ============================================================
-// Replay.tsx (نسخه نهایی و پریمیوم - صفحه گزارش هفتگی)
+// Replay.tsx (نسخه‌ی Real-Time با داده‌های واقعی)
 // ============================================================
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { TradeHistoryService, Trade } from '../../services/TradeHistoryService';
 
 export default function Replay() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [loading, setLoading] = useState(true);
+  const weekNumber = 32;
 
-  // داده‌های شبیه‌سازی شده
-  const weekData = {
-    weekNumber: 32,
-    trades: [
-      { id: 1, pair: 'ETH/USDT', type: 'Buy', entry: 3420, exit: 3480, holding: '4h', pnl: '+1.8%' },
-      { id: 2, pair: 'BTC/USDT', type: 'Sell', entry: 68000, exit: 67500, holding: '2h', pnl: '-0.7%' },
-      { id: 3, pair: 'SOL/USDT', type: 'Swap', entry: 148, exit: 152, holding: '6h', pnl: '+2.7%' },
-    ],
-  };
+  useEffect(() => {
+    const service = TradeHistoryService.getInstance();
+    service.getUserTrades('user-123', weekNumber).then((data) => {
+      setTrades(data);
+      setLoading(false);
+    });
+  }, []);
+
+  // محاسبه آمار
+  const totalTrades = trades.length;
+  const wins = trades.filter(t => t.pnl.startsWith('+')).length;
+  const losses = totalTrades - wins;
+  const winRate = totalTrades > 0 ? Math.round((wins / totalTrades) * 100) : 0;
+
+  if (loading) {
+    return (
+      <div className="container flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="text-4xl animate-pulse mb-2">📅</div>
+          <p className="text-secondary">{t('Loading trades...')}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container pb-4">
@@ -31,23 +50,23 @@ export default function Replay() {
           <h1 className="text-xl font-bold tracking-tight text-gradient">{t('Weekly Replay')}</h1>
         </div>
         <div className="glass px-3 py-1.5 rounded-lg border border-border-glass">
-          <span className="text-xs text-secondary font-medium">Week {weekData.weekNumber}</span>
+          <span className="text-xs text-secondary font-medium">{t('Week')} {weekNumber}</span>
         </div>
       </div>
 
       {/* خلاصه هفته */}
       <div className="gradient-card mb-6 relative overflow-hidden">
         <div className="relative z-10">
-          <p className="text-sm font-medium text-white/70">3 Trades</p>
+          <p className="text-sm font-medium text-white/70">{totalTrades} {t('Trades')}</p>
           <div className="flex gap-6 mt-3">
             <div>
-              <p className="text-success text-sm font-medium">▲ 2 Wins</p>
+              <p className="text-success text-sm font-medium">▲ {wins} {t('Wins')}</p>
             </div>
             <div>
-              <p className="text-danger text-sm font-medium">▼ 1 Loss</p>
+              <p className="text-danger text-sm font-medium">▼ {losses} {t('Losses')}</p>
             </div>
             <div>
-              <p className="text-white text-sm font-medium">Win Rate 66%</p>
+              <p className="text-white text-sm font-medium">{t('Win Rate')} {winRate}%</p>
             </div>
           </div>
         </div>
@@ -55,7 +74,7 @@ export default function Replay() {
 
       {/* لیست معاملات */}
       <div className="space-y-3">
-        {weekData.trades.map((trade) => (
+        {trades.map((trade) => (
           <div
             key={trade.id}
             className="glass-card p-4 border-border-glass hover:border-accent transition-all duration-300"
@@ -76,9 +95,9 @@ export default function Replay() {
               </span>
             </div>
             <div className="flex justify-between text-xs text-secondary">
-              <span>Entry: ${trade.entry}</span>
-              <span>Exit: ${trade.exit}</span>
-              <span>Holding: {trade.holding}</span>
+              <span>{t('Entry')}: ${trade.entry}</span>
+              <span>{t('Exit')}: ${trade.exit}</span>
+              <span>{t('Holding')}: {trade.holding}</span>
             </div>
           </div>
         ))}
