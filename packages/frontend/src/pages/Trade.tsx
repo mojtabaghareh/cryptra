@@ -1,7 +1,7 @@
 // ============================================================
 // Trade.tsx (نسخه نهایی اصلاح‌شده)
 // ============================================================
-
+        
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BinanceService } from '../services';
