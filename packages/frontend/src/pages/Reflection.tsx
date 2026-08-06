@@ -1,5 +1,5 @@
 // ============================================================
-// Reflection.tsx (نسخه‌ی نهایی - پریمیوم با Insights)
+// Reflection.tsx (نسخه‌ی نهایی و پریمیوم - صفحه بازتاب)
 // ============================================================
 
 import React, { useState, useEffect } from 'react';
@@ -64,7 +64,6 @@ export default function Reflection() {
       <div className="gradient-card mb-6 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-accent rounded-full opacity-10 blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-32 h-32 bg-accent rounded-full opacity-10 blur-2xl translate-y-1/2 -translate-x-1/2" />
-        
         <div className="relative z-10">
           <div className="flex justify-between items-start">
             <div>
@@ -142,4 +141,4 @@ export default function Reflection() {
       </button>
     </div>
   );
-} 
+}
