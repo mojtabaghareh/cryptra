@@ -1,5 +1,5 @@
 // ============================================================
-// TopMovers.tsx - Live Data Version
+// TopMovers.tsx - Live Price Updates (Fixed)
 // ============================================================
 
 import React, { useState, useEffect } from 'react';
@@ -11,22 +11,36 @@ export default function TopMovers() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [prices, setPrices] = useState<LivePrice[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const service = MarketService.getInstance();
-    
-    // دریافت اولیه داده‌ها
-    service.fetchPrices(['BTC', 'ETH', 'SOL', 'TON', 'LINK']).then(setPrices);
+    const symbols = ['BTC', 'ETH', 'SOL', 'TON', 'LINK'];
 
-    // ثبت برای دریافت به‌روزرسانی‌های خودکار
-    service.onPriceUpdate((newPrices) => {
+    // ۱. دریافت اولیه داده‌ها
+    const fetchInitial = async () => {
+      const initialPrices = await service.fetchPrices(symbols);
+      setPrices(initialPrices);
+      setIsLoading(false);
+    };
+    fetchInitial();
+
+    // ۲. ثبت شنونده برای به‌روزرسانی‌های زنده
+    const unsubscribe = service.subscribe((newPrices) => {
       setPrices(newPrices);
     });
 
-    // شروع به‌روزرسانی‌های خودکار هر ۵ ثانیه
-    service.startLiveUpdates(['BTC', 'ETH', 'SOL', 'TON', 'LINK']);
+    // ۳. شروع به‌روزرسانی‌های خودکار
+    service.startLiveUpdates(symbols, 3000);
+
+    // ۴. پاک‌سازی در زمان حذف کامپوننت
+    return () => {
+      unsubscribe();
+      service.stopLiveUpdates();
+    };
   }, []);
 
+  // دریافت آیکون و رنگ
   const getCoinIcon = (symbol: string) => {
     const icons: Record<string, string> = {
       'BTC': '₿', 'ETH': '⟠', 'SOL': '◎', 'TON': '💎', 'LINK': '🔗'
@@ -41,6 +55,17 @@ export default function TopMovers() {
     return colors[symbol] || '#4A90D9';
   };
 
+  if (isLoading) {
+    return (
+      <div className="glass-card h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl animate-pulse mb-2">📈</div>
+          <p className="text-secondary text-sm">Loading prices...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="glass-card h-full">
       <div className="flex justify-between items-center mb-4">
@@ -50,7 +75,10 @@ export default function TopMovers() {
           </div>
           <h3 className="text-sm font-semibold text-primary">{t('Top Movers')}</h3>
         </div>
-        <span className="text-xs text-secondary">Live • 5s</span>
+        <div className="flex items-center gap-1 glass px-2 py-0.5 rounded-full border border-border-glass">
+          <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+          <span className="text-[10px] text-secondary">Live</span>
+        </div>
       </div>
 
       <div className="space-y-3">
