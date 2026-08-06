@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { BinanceService, LivePrice } from '../services';
+import { BinanceService, LivePrice } from '../../services/BinanceService';
 
 export default function TopMovers() {
   const navigate = useNavigate();
