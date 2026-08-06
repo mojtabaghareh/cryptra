@@ -1,11 +1,13 @@
 // ============================================================
-// Markets.tsx (نسخه‌ی Real-Time با اتصال به بایننس)
+// Markets.tsx (نسخه نهایی اصلاح‌شده - بدون خطا)
 // ============================================================
 
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { BinanceService } from '../../services/index.js';
+import { BinanceService, BinancePrice } from '../../services/index.js';
+
+export default function Markets() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [prices, setPrices] = useState<BinancePrice[]>([]);
