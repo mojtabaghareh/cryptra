@@ -1,15 +1,61 @@
 // ============================================================
-// PortfolioOverview.tsx - Premium Portfolio Card with Chart
+// PortfolioOverview.tsx - Real-Time Portfolio Card
 // ============================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { BinanceService, BinancePrice } from '../../services/BinanceService';
 
 export default function PortfolioOverview() {
   const { t } = useTranslation();
   const [timeframe, setTimeframe] = useState('24H');
+  const [prices, setPrices] = useState<BinancePrice[]>([]);
+  const [totalValue, setTotalValue] = useState(24560.75);
+  const [todayChange, setTodayChange] = useState(1850.25);
+  const [changePercent, setChangePercent] = useState(8.22);
 
   const timeframes = ['1H', '24H', '7D', '30D', '1Y', 'ALL'];
+
+  // اتصال به بایننس و دریافت قیمت‌های لحظه‌ای
+  useEffect(() => {
+    const service = BinanceService.getInstance();
+    const symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'LINKUSDT'];
+
+    service.connect(symbols);
+
+    const unsubscribe = service.subscribe((newPrices) => {
+      setPrices(newPrices);
+      
+      // محاسبه‌ی مجموع ارزش بر اساس قیمت‌های لحظه‌ای
+      // اینجا فرض می‌کنیم کاربر دارایی‌های مشخصی دارد
+      const holdings = {
+        BTC: 0.15,
+        ETH: 2.5,
+        SOL: 45,
+        BNB: 10,
+        LINK: 50,
+      };
+
+      let total = 0;
+      newPrices.forEach((coin) => {
+        const symbol = coin.symbol;
+        if (holdings[symbol]) {
+          total += holdings[symbol] * coin.price;
+        }
+      });
+      setTotalValue(total);
+
+      // محاسبه‌ی تغییرات روزانه (شبیه‌سازی شده برای نمایش)
+      const randomChange = (Math.random() - 0.5) * 2000;
+      setTodayChange(randomChange);
+      setChangePercent((randomChange / total) * 100);
+    });
+
+    return () => {
+      unsubscribe();
+      service.disconnect();
+    };
+  }, []);
 
   return (
     <div className="gradient-card relative overflow-hidden mb-6 lg:mb-8">
@@ -25,15 +71,15 @@ export default function PortfolioOverview() {
               <p className="text-sm font-medium text-white/70">{t('Portfolio Overview')}</p>
               <div className="flex items-baseline gap-3 mt-1">
                 <h2 className="text-3xl lg:text-4xl font-bold text-white">
-                  $24,560.75
+                  ${totalValue.toFixed(2)}
                 </h2>
                 <div className="glass px-2 py-0.5 rounded-full flex items-center gap-1">
                   <span className="text-success text-xs">▲</span>
-                  <span className="text-white/80 text-xs">+8.22%</span>
+                  <span className="text-white/80 text-xs">+{changePercent.toFixed(2)}%</span>
                 </div>
               </div>
               <p className="text-xs text-white/60 mt-1">
-                ▲ $1,850.25 ({t('Today')})
+                ▲ ${todayChange.toFixed(2)} ({t('Today')})
               </p>
             </div>
           </div>
@@ -74,7 +120,7 @@ export default function PortfolioOverview() {
                  style={{ transform: 'rotate(-45deg)' }} />
             <div className="text-center">
               <p className="text-xs text-white/70">Total</p>
-              <p className="text-sm font-bold text-white">$24.56K</p>
+              <p className="text-sm font-bold text-white">${totalValue.toFixed(2)}</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-x-6 gap-y-1 mt-3 text-xs">
