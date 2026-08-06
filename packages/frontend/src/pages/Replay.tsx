@@ -1,11 +1,11 @@
 // ============================================================
-// Replay.tsx (نسخه‌ی Real-Time با داده‌های واقعی)
+// Replay.tsx (نسخه نهایی اصلاح‌شده و یکپارچه)
 // ============================================================
 
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { TradeHistoryService, Trade } from '../../services/TradeHistoryService';
+import { TradeHistoryService, Trade } from '../../services/index.ts';
 
 export default function Replay() {
   const { t } = useTranslation();
