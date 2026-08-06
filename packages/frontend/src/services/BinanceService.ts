@@ -21,12 +21,9 @@ export class BinanceService {
     return BinanceService.instance;
   }
 
-  // شروع اتصال WebSocket به بایننس
   connect(symbols: string[]) {
     if (this.socket?.readyState === WebSocket.OPEN) return;
 
-    // ساخت آدرس جریان داده برای بایننس
-    // برای هر نماد، جریان ticker را دریافت می‌کنیم
     const streams = symbols.map(s => `${s.toLowerCase()}@ticker`).join('/');
     const wsUrl = `wss://stream.binance.com:9443/ws/${streams}`;
 
@@ -40,12 +37,10 @@ export class BinanceService {
       try {
         const data = JSON.parse(event.data);
         const symbol = data.s.replace('USDT', '');
-        const price = parseFloat(data.c); // آخرین قیمت
-        const change24h = parseFloat(data.P); // تغییر ۲۴ ساعت
+        const price = parseFloat(data.c);
+        const change24h = parseFloat(data.P);
 
         this.latestPrices.set(symbol, { symbol, price, change24h });
-        
-        // اطلاع‌رسانی به تمام شنونده‌ها
         this.notifyListeners();
       } catch (error) {
         console.error('Error processing Binance message:', error);
@@ -62,7 +57,6 @@ export class BinanceService {
     };
   }
 
-  // ثبت شنونده برای دریافت به‌روزرسانی‌ها
   subscribe(callback: (data: BinancePrice[]) => void) {
     this.callbacks.push(callback);
     return () => {
