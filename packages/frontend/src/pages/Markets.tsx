@@ -1,44 +1,52 @@
 // ============================================================
-// Markets.tsx (نسخه نهایی و پریمیوم - صفحه بازارها)
+// Markets.tsx (نسخه‌ی Real-Time با اتصال به بایننس)
 // ============================================================
 
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-
-interface Coin {
-  id: string;
-  symbol: string;
-  name: string;
-  price: number;
-  change24h: number;
-  marketCap: number;
-  volume: number;
-  icon: string;
-  color: string;
-}
+import { BinanceService, BinancePrice } from '../../services/BinanceService';
 
 export default function Markets() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [coins, setCoins] = useState<Coin[]>([]);
+  const [prices, setPrices] = useState<BinancePrice[]>([]);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
 
+  // اتصال به بایننس برای دریافت قیمت‌های لحظه‌ای
   useEffect(() => {
-    // شبیه‌سازی داده‌های بازار
-    const mockCoins: Coin[] = [
-      { id: '1', symbol: 'BTC', name: 'Bitcoin', price: 68200, change24h: 2.4, marketCap: 1340000000000, volume: 30000000000, icon: '₿', color: '#F7931A' },
-      { id: '2', symbol: 'ETH', name: 'Ethereum', price: 3450, change24h: 1.8, marketCap: 420000000000, volume: 15000000000, icon: '⟠', color: '#627EEA' },
-      { id: '3', symbol: 'BNB', name: 'BNB', price: 590, change24h: 3.1, marketCap: 90000000000, volume: 5000000000, icon: '◆', color: '#F0B90B' },
-      { id: '4', symbol: 'SOL', name: 'Solana', price: 150, change24h: 5.2, marketCap: 65000000000, volume: 3000000000, icon: '◎', color: '#9945FF' },
-      { id: '5', symbol: 'TON', name: 'Toncoin', price: 5.2, change24h: -1.2, marketCap: 12000000000, volume: 400000000, icon: '💎', color: '#0088CC' },
-    ];
-    setCoins(mockCoins);
+    const service = BinanceService.getInstance();
+    const symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'TONUSDT'];
+
+    service.connect(symbols);
+
+    const unsubscribe = service.subscribe((newPrices) => {
+      setPrices(newPrices);
+    });
+
+    return () => {
+      unsubscribe();
+      service.disconnect();
+    };
   }, []);
 
-  const filteredCoins = coins.filter(coin => 
-    coin.name.toLowerCase().includes(search.toLowerCase()) || 
+  // دریافت آیکون و رنگ
+  const getCoinIcon = (symbol: string) => {
+    const icons: Record<string, string> = {
+      'BTC': '₿', 'ETH': '⟠', 'BNB': '◆', 'SOL': '◎', 'TON': '💎'
+    };
+    return icons[symbol] || '🪙';
+  };
+
+  const getCoinColor = (symbol: string) => {
+    const colors: Record<string, string> = {
+      'BTC': '#F7931A', 'ETH': '#627EEA', 'BNB': '#F0B90B', 'SOL': '#9945FF', 'TON': '#0088CC'
+    };
+    return colors[symbol] || '#4A90D9';
+  };
+
+  const filteredCoins = prices.filter(coin => 
     coin.symbol.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -91,28 +99,27 @@ export default function Markets() {
       <div className="space-y-3">
         {filteredCoins.map((coin) => (
           <div
-            key={coin.id}
-            onClick={() => navigate(`/coin/${coin.id}`)}
+            key={coin.symbol}
             className="glass-card flex items-center justify-between p-4 hover:bg-card-hover border-border-glass hover:border-accent transition-all duration-300 cursor-pointer"
           >
             <div className="flex items-center gap-3">
               <div 
                 className="w-10 h-10 rounded-xl flex items-center justify-center text-lg"
-                style={{ backgroundColor: `${coin.color}20`, color: coin.color }}
+                style={{ backgroundColor: `${getCoinColor(coin.symbol)}20`, color: getCoinColor(coin.symbol) }}
               >
-                {coin.icon}
+                {getCoinIcon(coin.symbol)}
               </div>
               <div>
-                <p className="font-medium text-primary text-sm">{coin.name}</p>
+                <p className="font-medium text-primary text-sm">{coin.symbol}</p>
                 <p className="text-xs text-secondary">{coin.symbol}</p>
               </div>
             </div>
             <div className="text-right">
               <p className="font-medium text-primary text-sm">
-                ${coin.price.toLocaleString()}
+                ${coin.price.toFixed(2)}
               </p>
               <p className={`text-xs font-medium ${coin.change24h >= 0 ? 'text-success' : 'text-danger'}`}>
-                {coin.change24h >= 0 ? '▲' : '▼'} {Math.abs(coin.change24h)}%
+                {coin.change24h >= 0 ? '▲' : '▼'} {Math.abs(coin.change24h).toFixed(2)}%
               </p>
             </div>
           </div>
