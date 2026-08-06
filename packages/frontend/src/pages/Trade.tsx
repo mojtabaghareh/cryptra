@@ -1,9 +1,10 @@
 // ============================================================
-// Trade.tsx (نسخه‌ی با قابلیت تراکنش واقعی)
+// Trade.tsx (نسخه‌ی Real-Time با اتصال به بایننس)
 // ============================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { BinanceService } from '../../services/BinanceService';
 
 export default function Trade() {
   const { t } = useTranslation();
@@ -13,6 +14,27 @@ export default function Trade() {
   const [isSwap, setIsSwap] = useState(true);
   const [showWarning, setShowWarning] = useState(false);
   const [isWalletConnected, setIsWalletConnected] = useState(false);
+  
+  // قیمت لحظه‌ای ETH از بایننس
+  const [ethPrice, setEthPrice] = useState(3450);
+
+  // اتصال به بایننس برای دریافت قیمت لحظه‌ای ETH
+  useEffect(() => {
+    const service = BinanceService.getInstance();
+    service.connect(['ETHUSDT']);
+
+    const unsubscribe = service.subscribe((prices) => {
+      const eth = prices.find(p => p.symbol === 'ETH');
+      if (eth) {
+        setEthPrice(eth.price);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      service.disconnect();
+    };
+  }, []);
 
   // شبیه‌سازی اتصال کیف پول
   const connectWallet = () => {
@@ -27,6 +49,8 @@ export default function Trade() {
     }
     setShowWarning(true);
   };
+
+  const estimatedOutput = amount ? (parseFloat(amount) * ethPrice).toFixed(2) : '0.00';
 
   return (
     <div className="container pb-4">
@@ -118,7 +142,7 @@ export default function Trade() {
           <div className="flex gap-3">
             <input
               type="text"
-              value={amount ? (parseFloat(amount) * 3450).toFixed(2) : '0.00'}
+              value={estimatedOutput}
               disabled
               className="bg-transparent text-2xl font-semibold w-full outline-none text-muted"
             />
@@ -138,6 +162,28 @@ export default function Trade() {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* جزئیات معامله */}
+      <div className="glass-card mb-6 space-y-3">
+        <div className="flex justify-between text-sm">
+          <span className="text-secondary">{t('Rate')}</span>
+          <span className="text-primary font-medium">1 ETH ≈ ${ethPrice.toFixed(2)} USDT</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-secondary">{t('Network Fee')}</span>
+          <span className="text-primary font-medium">~$0.50</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-secondary">{t('Slippage')}</span>
+          <span className="text-primary font-medium">0.5%</span>
+        </div>
+        <div className="flex justify-between text-sm pt-3 border-t border-border-glass">
+          <span className="text-secondary font-medium">{t('Est. Output')}</span>
+          <span className="text-primary font-semibold text-accent">
+            {estimatedOutput} USDT
+          </span>
         </div>
       </div>
 
