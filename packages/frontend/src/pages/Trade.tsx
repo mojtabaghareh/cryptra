@@ -1,10 +1,10 @@
 // ============================================================
-// Trade.tsx (نسخه‌ی Real-Time با اتصال به بایننس)
+// Trade.tsx (نسخه نهایی اصلاح‌شده)
 // ============================================================
 
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BinanceService } from '../../services/index';
+import { BinanceService } from '../../services/index.ts';
 
 export default function Trade() {
   const { t } = useTranslation();
