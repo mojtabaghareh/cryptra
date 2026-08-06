@@ -1,5 +1,5 @@
 // ============================================================
-// MarketService.ts - Live Price Service
+// MarketService.ts - Live Price Service with Event Emitter
 // ============================================================
 
 export interface LivePrice {
@@ -9,10 +9,15 @@ export interface LivePrice {
   volume: number;
 }
 
+type PriceUpdateCallback = (prices: LivePrice[]) => void;
+
 export class MarketService {
   private static instance: MarketService;
-  private listeners: Map<string, ((data: LivePrice[]) => void)[]> = new Map();
+  private callbacks: PriceUpdateCallback[] = [];
+  private intervalId: NodeJS.Timeout | null = null;
+  private symbols: string[] = [];
 
+  // Singleton pattern
   public static getInstance(): MarketService {
     if (!MarketService.instance) {
       MarketService.instance = new MarketService();
@@ -20,14 +25,49 @@ export class MarketService {
     return MarketService.instance;
   }
 
-  // شبیه‌سازی دریافت قیمت‌ها از یک API (مثلاً CoinGecko)
-  // در نسخه واقعی، اینجا درخواست به API فرستاده می‌شود
-  async fetchPrices(symbols: string[]): Promise<LivePrice[]> {
+  // شروع به‌روزرسانی خودکار
+  startLiveUpdates(symbols: string[], intervalMs: number = 3000) {
+    this.symbols = symbols;
+    
+    // اگر قبلاً اینتروالی وجود دارد، آن را پاک کن
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+    }
+
+    // اینتروال جدید ایجاد کن
+    this.intervalId = setInterval(async () => {
+      const prices = await this.fetchPrices(symbols);
+      // به تمام شنونده‌ها اطلاع بده
+      this.notifyListeners(prices);
+    }, intervalMs);
+  }
+
+  // ثبت شنونده
+  subscribe(callback: PriceUpdateCallback) {
+    this.callbacks.push(callback);
+    // یک تابع برای لغو اشتراک برگردان
+    return () => {
+      this.callbacks = this.callbacks.filter(cb => cb !== callback);
+    };
+  }
+
+  // اطلاع‌رسانی به همه شنونده‌ها
+  private notifyListeners(prices: LivePrice[]) {
+    this.callbacks.forEach(callback => {
+      try {
+        callback(prices);
+      } catch (error) {
+        console.error('Error in price update callback:', error);
+      }
+    });
+  }
+
+  // دریافت قیمت‌ها (با نوسان تصادفی)
+  private async fetchPrices(symbols: string[]): Promise<LivePrice[]> {
     // شبیه‌سازی تغییر قیمت
-    const mockPrices: LivePrice[] = symbols.map((symbol) => {
+    return symbols.map((symbol) => {
       const basePrice = symbol === 'BTC' ? 62541 : symbol === 'ETH' ? 3412 : symbol === 'SOL' ? 145 : symbol === 'TON' ? 6.2 : 13.6;
-      // ایجاد نوسان تصادفی در قیمت
-      const fluctuation = (Math.random() - 0.5) * 0.02; // تغییر ۲٪
+      const fluctuation = (Math.random() - 0.5) * 0.02;
       const newPrice = basePrice * (1 + fluctuation);
       
       return {
@@ -37,30 +77,13 @@ export class MarketService {
         volume: Math.random() * 1000000,
       };
     });
-
-    return mockPrices;
   }
 
-  // شروع به‌روزرسانی خودکار قیمت‌ها
-  startLiveUpdates(symbols: string[], intervalMs: number = 5000) {
-    setInterval(async () => {
-      const prices = await this.fetchPrices(symbols);
-      this.notifyListeners(prices);
-    }, intervalMs);
-  }
-
-  // ثبت شنونده برای دریافت به‌روزرسانی‌ها
-  onPriceUpdate(callback: (data: LivePrice[]) => void) {
-    const key = 'global';
-    if (!this.listeners.has(key)) {
-      this.listeners.set(key, []);
+  // توقف به‌روزرسانی‌ها (برای پاک‌سازی)
+  stopLiveUpdates() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
     }
-    this.listeners.get(key)!.push(callback);
-  }
-
-  private notifyListeners(prices: LivePrice[]) {
-    const key = 'global';
-    const listeners = this.listeners.get(key) || [];
-    listeners.forEach(callback => callback(prices));
   }
 }
