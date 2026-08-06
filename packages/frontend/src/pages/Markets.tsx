@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { BinanceService, BinancePrice } from '../../services/index.js';
+import { BinanceService, BinancePrice } from '../../services';
 
 export default function Markets() {
   const { t } = useTranslation();
