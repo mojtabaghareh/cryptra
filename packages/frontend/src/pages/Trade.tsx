@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BinanceService } from '../../services/BinanceService';
+import { BinanceService } from '../../services';
 
 export default function Trade() {
   const { t } = useTranslation();
