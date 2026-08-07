@@ -4,25 +4,16 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // این خط حیاتی است! به Vite می‌گوید به هیچ فایل بیرونی نگاه نکند
+  // مهم: این خط باعث می‌شود Vite کتابخانه‌های adapters را در بیلد ببیند
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', 'react-i18next']
+    include: ['ethers', 'react', 'react-dom', 'react-router-dom', 'react-i18next']
   },
-  esbuild: {
-    tsconfigRaw: {
-      compilerOptions: {
-        target: 'ES2020',
-        useDefineForClassFields: true,
-        lib: ['ES2020', 'DOM', 'DOM.Iterable'],
-        module: 'ESNext',
-        skipLibCheck: true,
-        moduleResolution: 'bundler',
-        allowImportingTsExtensions: true,
-        resolveJsonModule: true,
-        isolatedModules: true,
-        noEmit: true,
-        jsx: 'react-jsx'
-      }
+  // این تنظیم به ساختن فایل‌های استاتیک برای GitHub Pages کمک می‌کند
+  base: '/cryptra/', // این را حتماً چک کنید! باید با نام رپوزیتوری شما یکی باشد
+  build: {
+    sourcemap: true,
+    rollupOptions: {
+      external: []
     }
   }
 })
