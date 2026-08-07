@@ -84,7 +84,7 @@ function App() {
     <Router>
       <div className="min-h-screen bg-primary text-primary pb-20 container overflow-x-hidden">
         <Routes>
-          {/* تغییرات مهم برای جلوگیری از صفحه خالی در تلگرام */}
+          {/* صفحه اصلی را به Wallet تغییر دادیم تا در تلگرام و وب مستقیم باز شود */}
           <Route path="/" element={<Wallet />} />
           
           <Route path="/home" element={<Home />} />
