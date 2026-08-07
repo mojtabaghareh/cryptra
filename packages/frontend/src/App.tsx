@@ -1,7 +1,3 @@
-// ============================================================
-// App.tsx - Final Production Version (Web & Telegram)
-// ============================================================
-
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -88,7 +84,9 @@ function App() {
     <Router>
       <div className="min-h-screen bg-primary text-primary pb-20 container overflow-x-hidden">
         <Routes>
-          <Route path="/" element={<Navigate to="/home" replace />} />
+          {/* تغییرات مهم برای جلوگیری از صفحه خالی در تلگرام */}
+          <Route path="/" element={<Wallet />} />
+          
           <Route path="/home" element={<Home />} />
           <Route path="/markets" element={<Markets />} />
           <Route path="/trade" element={<Trade />} />
@@ -100,7 +98,9 @@ function App() {
           <Route path="/settings" element={<Settings />} />
           <Route path="/replay" element={<Replay />} />
           <Route path="/wallet" element={<Wallet />} />
-          <Route path="*" element={<Navigate to="/home" replace />} />
+          
+          {/* اگر کاربر آدرس اشتباهی زد، او را به صفحه Wallet ببرید */}
+          <Route path="*" element={<Navigate to="/wallet" replace />} />
         </Routes>
         <BottomNav />
       </div>
