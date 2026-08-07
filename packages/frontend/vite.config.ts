@@ -4,12 +4,21 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // مهم: این خط باعث می‌شود Vite کتابخانه‌های adapters را در بیلد ببیند
+  base: '/cryptra/',
+  // این خط باعث می‌شود Vite پکیج ethers را درست پیدا کند
   optimizeDeps: {
-    include: ['ethers', 'react', 'react-dom', 'react-router-dom', 'react-i18next']
+    include: [
+      'ethers', 
+      'react', 
+      'react-dom', 
+      'react-router-dom', 
+      'react-i18next',
+      // این بخش برای اطمینان از دیده شدن آداپتورهای شماست
+      '@solana/web3.js',
+      '@solana/wallet-adapter-phantom',
+      '@tonconnect/sdk'
+    ]
   },
-  // این تنظیم به ساختن فایل‌های استاتیک برای GitHub Pages کمک می‌کند
-  base: '/cryptra/', // این را حتماً چک کنید! باید با نام رپوزیتوری شما یکی باشد
   build: {
     sourcemap: true,
     rollupOptions: {
