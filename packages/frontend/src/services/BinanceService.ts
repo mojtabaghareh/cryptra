@@ -21,6 +21,18 @@ export class BinanceService {
     return BinanceService.instance;
   }
 
+  // این متد جدید را اضافه کنید
+  async fetchPrices(symbols: string[]): Promise<BinancePrice[]> {
+    // در نسخه واقعی، اینجا به API متصل می‌شود
+    // اما فعلاً داده‌های شبیه‌سازی‌شده برمی‌گرداند
+    return [
+      { symbol: 'BTC', price: 62541.20, change24h: 4.25 },
+      { symbol: 'ETH', price: 3412.75, change24h: 3.10 },
+      { symbol: 'SOL', price: 145.25, change24h: 2.85 },
+      { symbol: 'TON', price: 6.25, change24h: 2.45 },
+    ];
+  }
+
   connect(symbols: string[]) {
     if (this.socket?.readyState === WebSocket.OPEN) return;
 
