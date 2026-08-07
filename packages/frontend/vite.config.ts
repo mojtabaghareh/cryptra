@@ -1,17 +1,20 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import path from 'path';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
 
+// https://vitejs.dev/config/
 export default defineConfig({
-  base: '/cryptra/',
   plugins: [react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
   },
-  server: {
-    port: 5173,
-    open: true,
+  // این بخش بسیار مهم است تا Vite به دنبال پوشه‌های بیرون نگردد
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom', 'react-i18next'],
   },
-});
+  build: {
+    sourcemap: true,
+  },
+})
