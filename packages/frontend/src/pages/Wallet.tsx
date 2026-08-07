@@ -1,9 +1,15 @@
 // ============================================================
-// Wallet.tsx (نسخه‌ی Real-Time با نمایش موجودی واقعی)
+// Wallet.tsx (نسخه واقعی با WalletManager)
 // ============================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+// ایمپورت سیستم واقعی ما
+import { walletManager } from '../../../adapters/src/wallet-connectors/WalletManager';
+import { registerWallets } from '../../../adapters/src/wallet-connectors/registerWallets';
+
+// یک بار در طول عمر برنامه ثبت نام می‌کنیم
+registerWallets();
 
 interface ConnectedWallet {
   id: string;
@@ -12,49 +18,63 @@ interface ConnectedWallet {
   chain: string;
   isActive: boolean;
   icon: string;
-  balance?: string; // اضافه شدن موجودی
+  balance?: string;
 }
 
 export default function Wallet() {
   const { t } = useTranslation();
-  const [wallets, setWallets] = useState<ConnectedWallet[]>([
-    {
-      id: '1',
-      name: 'MetaMask',
-      address: '0x1234...5678',
-      chain: 'Ethereum',
-      isActive: true,
-      icon: '🦊',
-      balance: '2.45 ETH', // موجودی شبیه‌سازی‌شده
-    },
-    {
-      id: '2',
-      name: 'Phantom',
-      address: '7V2R...J5Qb',
-      chain: 'Solana',
-      isActive: false,
-      icon: '👻',
-      balance: '0.00 SOL',
-    },
-  ]);
+  const [wallets, setWallets] = useState<ConnectedWallet[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // شبیه‌سازی دریافت موجودی واقعی از بلاکچین
-  useEffect(() => {
-    // در نسخه واقعی، اینجا به RPC متصل می‌شود
-    // مثال: const balance = await ethers.provider.getBalance(address);
-  }, []);
+  // تابع اتصال به کیف پول واقعی
+  const connectWallet = async () => {
+    setIsLoading(true);
+    try {
+      // 1. لیست ولت‌های نصب شده را از سیستم می‌گیریم
+      const installed = walletManager.getInstalledAdapters();
+      
+      if (installed.length === 0) {
+        alert("لطفاً متامسک یا فانتوم را در مرورگر خود نصب کنید!");
+        return;
+      }
 
-  const connectWallet = () => {
-    const newWallet: ConnectedWallet = {
-      id: Date.now().toString(),
-      name: 'WalletConnect',
-      address: '0x' + Math.random().toString(16).substring(2, 10) + '...',
-      chain: 'Ethereum',
-      isActive: false,
-      icon: '🟣',
-      balance: '0.00 ETH',
-    };
-    setWallets([...wallets, newWallet]);
+      // 2. به اولین ولت نصب شده (مثلاً متامسک) وصل می‌شویم
+      const adapter = installed[0];
+      const account = await walletManager.connect(adapter.id);
+      
+      // 3. موجودی واقعی را می‌خوانیم
+      const balance = await walletManager.getBalance();
+
+      // 4. ولت جدید را به لیست UI اضافه می‌کنیم
+      const newWallet: ConnectedWallet = {
+        id: adapter.id,
+        name: adapter.name,
+        address: account.address,
+        chain: typeof account.chainId === 'number' ? 'Ethereum' : account.chainId.toString(),
+        isActive: true,
+        icon: adapter.id === 'metamask' ? '🦊' : adapter.id === 'phantom' ? '👻' : '🟣',
+        balance: `${balance} ETH`,
+      };
+
+      setWallets([newWallet]);
+      
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message || "خطا در اتصال به کیف پول");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // تابع قطع اتصال
+  const disconnectWallet = async (walletId: string) => {
+    try {
+      await walletManager.disconnect();
+      // حذف ولت از لیست UI
+      setWallets(wallets.filter(w => w.id !== walletId));
+    } catch (error: any) {
+      alert(error.message || "خطا در قطع اتصال");
+    }
   };
 
   return (
@@ -76,6 +96,12 @@ export default function Wallet() {
 
       {/* لیست کیف‌پول‌های متصل */}
       <div className="space-y-3 mb-6">
+        {wallets.length === 0 && (
+          <div className="text-center text-secondary text-sm py-10 opacity-70">
+            هیچ کیف پولی متصل نیست. برای اتصال دکمه پایین را بزنید.
+          </div>
+        )}
+
         {wallets.map((wallet) => (
           <div
             key={wallet.id}
@@ -113,6 +139,7 @@ export default function Wallet() {
             </div>
             <div className="flex gap-2">
               <button
+                onClick={() => disconnectWallet(wallet.id)}
                 className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all duration-300 ${
                   wallet.isActive
                     ? 'glass text-danger hover:bg-danger/10 border border-border-glass'
@@ -129,9 +156,10 @@ export default function Wallet() {
       {/* دکمه اتصال کیف پول جدید */}
       <button
         onClick={connectWallet}
-        className="w-full py-4 bg-gradient-to-r from-accent to-accent-glow text-white text-sm font-bold rounded-xl shadow-lg shadow-accent-glow hover:shadow-xl hover:shadow-accent-glow/50 transition-all duration-300 transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
+        disabled={isLoading}
+        className="w-full py-4 bg-gradient-to-r from-accent to-accent-glow text-white text-sm font-bold rounded-xl shadow-lg shadow-accent-glow hover:shadow-xl hover:shadow-accent-glow/50 transition-all duration-300 transform hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        <span>+</span> {t('Connect New Wallet')}
+        <span>+</span> {isLoading ? "در حال اتصال..." : t('Connect New Wallet')}
       </button>
 
       {/* اطلاعات امنیتی */}
