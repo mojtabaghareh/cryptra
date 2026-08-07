@@ -1,227 +1,129 @@
-// ============================================================
-// Trade.tsx (نسخه نهایی اصلاح‌شده)
-// ============================================================
-        
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BinanceService } from '../services';
 
 export default function Trade() {
   const { t } = useTranslation();
+  const [asset, setAsset] = useState('BTC');
+  const [type, setType] = useState<'BUY' | 'SELL'>('BUY');
   const [amount, setAmount] = useState('');
-  const [fromToken, setFromToken] = useState('USDT');
-  const [toToken, setToToken] = useState('ETH');
-  const [isSwap, setIsSwap] = useState(true);
-  const [showWarning, setShowWarning] = useState(false);
-  const [isWalletConnected, setIsWalletConnected] = useState(false);
-  
-  // قیمت لحظه‌ای ETH از بایننس
-  const [ethPrice, setEthPrice] = useState(3450);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [result, setResult] = useState<any>(null);
 
-  // اتصال به بایننس برای دریافت قیمت لحظه‌ای ETH
-  useEffect(() => {
-    const service = BinanceService.getInstance();
-    service.connect(['ETHUSDT']);
-
-    const unsubscribe = service.subscribe((prices) => {
-      const eth = prices.find(p => p.symbol === 'ETH');
-      if (eth) {
-        setEthPrice(eth.price);
-      }
-    });
-
-    return () => {
-      unsubscribe();
-      service.disconnect();
-    };
-  }, []);
-
-  // شبیه‌سازی اتصال کیف پول
-  const connectWallet = () => {
-    setIsWalletConnected(true);
-    alert('✅ Wallet Connected! (Simulation)');
-  };
-
-  const handleTrade = () => {
-    if (!isWalletConnected) {
-      alert('❌ لطفاً ابتدا کیف پول خود را متصل کنید.');
+  const handleSubmit = async () => {
+    if (!amount || parseFloat(amount) <= 0) {
+      alert('لطفاً مبلغ معتبر وارد کنید');
       return;
     }
-    setShowWarning(true);
-  };
 
-  const estimatedOutput = amount ? (parseFloat(amount) * ethPrice).toFixed(2) : '0.00';
+    setIsSubmitting(true);
+    try {
+      // ارسال تصمیم به بک‌اند
+      const response = await fetch('http://localhost:4000/api/decisions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: 'test_user_1', // در نسخه واقعی از آدرس ولت استفاده می‌شود
+          type,
+          asset,
+          amount: parseFloat(amount),
+          price: 65000, // در نسخه واقعی قیمت لحظه‌ای گرفته می‌شود
+          timestamp: new Date(),
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setResult(data);
+        alert(`✅ تصمیم ثبت شد!\nامتیاز تحلیل: ${data.analysis.score}\nXP دریافتی: ${data.xpGained}`);
+      } else {
+        alert('❌ خطا در ثبت تصمیم: ' + data.error);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('❌ خطا در ارتباط با سرور');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="container pb-4">
-      {/* هدر پریمیوم */}
-      <div className="flex items-center justify-between mb-6 mt-2">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accent-glow flex items-center justify-center shadow-lg shadow-accent-glow">
-            <span className="text-lg">⚡</span>
-          </div>
-          <h1 className="text-xl font-bold tracking-tight text-gradient">{t('Trade')}</h1>
+      <div className="flex items-center gap-3 mb-6 mt-2">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
+          <span className="text-lg">📊</span>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={connectWallet}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 ${
-              isWalletConnected
-                ? 'glass text-success border border-success/30'
-                : 'glass text-accent border border-border-glass hover:border-accent'
-            }`}
+        <h1 className="text-xl font-bold tracking-tight text-gradient">{t('Trade & Decide')}</h1>
+      </div>
+
+      <div className="glass-card p-6 border border-border-glass space-y-4">
+        <div>
+          <label className="text-sm text-secondary font-medium block mb-1">دارایی (Asset)</label>
+          <select 
+            value={asset} 
+            onChange={(e) => setAsset(e.target.value)}
+            className="w-full bg-card border border-border-glass rounded-lg p-2 text-primary outline-none focus:border-accent"
           >
-            {isWalletConnected ? '🟢 Connected' : '🔗 Connect Wallet'}
-          </button>
-        </div>
-      </div>
-
-      {/* دکمه‌های حالت معامله */}
-      <div className="flex gap-1 glass px-1 py-1 rounded-xl mb-4">
-        <button
-          onClick={() => setIsSwap(true)}
-          className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 ${
-            isSwap
-              ? 'bg-accent text-white shadow-md shadow-accent-glow'
-              : 'text-secondary hover:text-primary'
-          }`}
-        >
-          Swap
-        </button>
-        <button
-          onClick={() => setIsSwap(false)}
-          className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 ${
-            !isSwap
-              ? 'bg-accent text-white shadow-md shadow-accent-glow'
-              : 'text-secondary hover:text-primary'
-          }`}
-        >
-          Advanced
-        </button>
-      </div>
-
-      {/* فرم معامله */}
-      <div className="glass-card mb-4">
-        <div className="p-4 border-b border-border-glass">
-          <div className="flex flex-col w-full">
-            <div className="flex justify-between mb-2">
-              <span className="text-sm text-secondary font-medium">{t('From')}</span>
-              <span className="text-xs text-muted">Balance: 2,450 USDT</span>
-            </div>
-            <div className="flex gap-3">
-              <input
-                type="text"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
-                className="bg-transparent text-2xl font-semibold w-full outline-none text-primary"
-              />
-              <div className="relative">
-                <select
-                  value={fromToken}
-                  onChange={(e) => setFromToken(e.target.value)}
-                  className="glass px-3 py-1.5 rounded-lg text-sm outline-none text-secondary font-medium appearance-none cursor-pointer pr-8 border border-border-glass hover:border-accent transition-colors"
-                >
-                  <option value="USDT">USDT</option>
-                  <option value="USDC">USDC</option>
-                </select>
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M6 9l6 6 6-6" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
+            <option value="BTC">Bitcoin (BTC)</option>
+            <option value="ETH">Ethereum (ETH)</option>
+            <option value="SOL">Solana (SOL)</option>
+          </select>
         </div>
 
-        <div className="p-4">
-          <div className="flex justify-between mb-2">
-            <span className="text-sm text-secondary font-medium">{t('To')}</span>
-          </div>
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={estimatedOutput}
-              disabled
-              className="bg-transparent text-2xl font-semibold w-full outline-none text-muted"
-            />
-            <div className="relative">
-              <select
-                value={toToken}
-                onChange={(e) => setToToken(e.target.value)}
-                className="glass px-3 py-1.5 rounded-lg text-sm outline-none text-secondary font-medium appearance-none cursor-pointer pr-8 border border-border-glass hover:border-accent transition-colors"
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm text-secondary font-medium block mb-1">نوع تصمیم</label>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setType('BUY')}
+                className={`flex-1 py-2 rounded-lg transition-colors ${type === 'BUY' ? 'bg-green-600 text-white' : 'bg-card text-secondary border border-border-glass'}`}
               >
-                <option value="ETH">ETH</option>
-                <option value="BTC">BTC</option>
-              </select>
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
-              </div>
+                خرید
+              </button>
+              <button 
+                onClick={() => setType('SELL')}
+                className={`flex-1 py-2 rounded-lg transition-colors ${type === 'SELL' ? 'bg-red-600 text-white' : 'bg-card text-secondary border border-border-glass'}`}
+              >
+                فروش
+              </button>
             </div>
           </div>
+          <div>
+            <label className="text-sm text-secondary font-medium block mb-1">مبلغ</label>
+            <input 
+              type="number" 
+              value={amount} 
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              className="w-full bg-card border border-border-glass rounded-lg p-2 text-primary outline-none focus:border-accent"
+            />
+          </div>
         </div>
-      </div>
 
-      {/* جزئیات معامله */}
-      <div className="glass-card mb-6 space-y-3">
-        <div className="flex justify-between text-sm">
-          <span className="text-secondary">{t('Rate')}</span>
-          <span className="text-primary font-medium">1 ETH ≈ ${ethPrice.toFixed(2)} USDT</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-secondary">{t('Network Fee')}</span>
-          <span className="text-primary font-medium">~$0.50</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-secondary">{t('Slippage')}</span>
-          <span className="text-primary font-medium">0.5%</span>
-        </div>
-        <div className="flex justify-between text-sm pt-3 border-t border-border-glass">
-          <span className="text-secondary font-medium">{t('Est. Output')}</span>
-          <span className="text-primary font-semibold text-accent">
-            {estimatedOutput} USDT
-          </span>
-        </div>
-      </div>
+        <button
+          onClick={handleSubmit}
+          disabled={isSubmitting}
+          className="w-full py-3 bg-gradient-to-r from-accent to-accent-glow text-white font-bold rounded-xl shadow-lg shadow-accent-glow hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+        >
+          {isSubmitting ? 'در حال ارسال...' : 'ثبت تصمیم و تحلیل'}
+        </button>
 
-      {/* دکمه‌ی اصلی معامله */}
-      <button
-        onClick={handleTrade}
-        className="w-full py-4 bg-gradient-to-r from-accent to-accent-glow text-white text-lg font-bold rounded-xl shadow-lg shadow-accent-glow hover:shadow-xl hover:shadow-accent-glow/50 transition-all duration-300 transform hover:-translate-y-0.5"
-      >
-        {isSwap ? t('Swap') : t('Buy')}
-      </button>
-
-      {/* هشدار بازتاب (فقط در صورت نمایش) */}
-      {showWarning && isWalletConnected && (
-        <div className="mt-4 glass-card border border-warning/30 animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-full bg-warning/20 flex items-center justify-center flex-shrink-0">
-              <span className="text-lg">🪞</span>
-            </div>
-            <div className="flex-1">
-              <h3 className="text-warning font-semibold mb-1">Reflection</h3>
-              <p className="text-sm text-secondary leading-relaxed">
-                شما در ۳ معامله اخیر خود، در زمان افزایش قیمت خرید کرده‌اید. این ممکن است نشانه‌ی FOMO باشد. مطمئن هستید؟
-              </p>
-              <div className="flex gap-3 mt-4">
-                <button className="px-5 py-2 bg-gradient-to-r from-accent to-accent-glow text-white rounded-lg text-sm font-medium shadow-sm shadow-accent-glow">
-                  Continue
-                </button>
-                <button
-                  onClick={() => setShowWarning(false)}
-                  className="px-5 py-2 glass border border-border-glass rounded-lg text-sm font-medium text-secondary hover:text-primary transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
+        {result && (
+          <div className="mt-4 p-4 bg-card border border-border-glass rounded-xl animate-fade-in">
+            <h3 className="text-sm font-bold text-primary mb-2">📋 نتیجه تحلیل</h3>
+            <div className="space-y-1 text-sm text-secondary">
+              <p><span className="font-semibold">امتیاز تحلیل:</span> {result.analysis.score}</p>
+              <p><span className="font-semibold">سبک:</span> {result.analysis.style}</p>
+              <p><span className="font-semibold">سطح ریسک:</span> {result.analysis.riskLevel}</p>
+              <p><span className="font-semibold">XP کسب شده:</span> {result.xpGained}</p>
+              {result.analysis.warnings.length > 0 && (
+                <div className="mt-2 p-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-300">
+                  ⚠️ {result.analysis.warnings.join(' ')}
+                </div>
+              )}
             </div>
           </div>
-        </div> 
-      )}
+        )}
+      </div>
     </div>
   );
 }
