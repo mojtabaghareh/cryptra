@@ -1,1 +1,27 @@
+generator client {
+  provider = "prisma-client-js"
+}
 
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Event {
+  id        String   @id @default(cuid())
+  userId    String   @index
+  type      String   
+  asset     String
+  amount    Float
+  price     Float
+  timestamp DateTime @default(now())
+  metadata  Json?
+}
+
+model DecisionMetric {
+  id        String @id @default(cuid())
+  userId    String @unique
+  score     Int
+  style     String
+  riskLevel Float
+}
