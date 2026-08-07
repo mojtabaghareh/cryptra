@@ -1,15 +1,10 @@
 // ============================================================
-// Wallet.tsx (نسخه واقعی با WalletManager)
+// Wallet.tsx (نسخه نهایی با useWallet)
 // ============================================================
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
-// ایمپورت سیستم واقعی ما
-import { walletManager } from '../../../adapters/src/wallet-connectors/WalletManager';
-import { registerWallets } from '../../../adapters/src/wallet-connectors/registerWallets';
-
-// یک بار در طول عمر برنامه ثبت نام می‌کنیم
-registerWallets();
+import { useWallet } from '../hooks/useWallet';
 
 interface ConnectedWallet {
   id: string;
@@ -23,59 +18,29 @@ interface ConnectedWallet {
 
 export default function Wallet() {
   const { t } = useTranslation();
-  const [wallets, setWallets] = useState<ConnectedWallet[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  
+  // استفاده از هوک اختصاصی
+  const { 
+    address, 
+    balance, 
+    isConnecting, 
+    error, 
+    connect, 
+    disconnect, 
+    isConnected,
+    availableWallets 
+  } = useWallet();
 
-  // تابع اتصال به کیف پول واقعی
-  const connectWallet = async () => {
-    setIsLoading(true);
-    try {
-      // 1. لیست ولت‌های نصب شده را از سیستم می‌گیریم
-      const installed = walletManager.getInstalledAdapters();
-      
-      if (installed.length === 0) {
-        alert("لطفاً متامسک یا فانتوم را در مرورگر خود نصب کنید!");
-        return;
-      }
-
-      // 2. به اولین ولت نصب شده (مثلاً متامسک) وصل می‌شویم
-      const adapter = installed[0];
-      const account = await walletManager.connect(adapter.id);
-      
-      // 3. موجودی واقعی را می‌خوانیم
-      const balance = await walletManager.getBalance();
-
-      // 4. ولت جدید را به لیست UI اضافه می‌کنیم
-      const newWallet: ConnectedWallet = {
-        id: adapter.id,
-        name: adapter.name,
-        address: account.address,
-        chain: typeof account.chainId === 'number' ? 'Ethereum' : account.chainId.toString(),
-        isActive: true,
-        icon: adapter.id === 'metamask' ? '🦊' : adapter.id === 'phantom' ? '👻' : '🟣',
-        balance: `${balance} ETH`,
-      };
-
-      setWallets([newWallet]);
-      
-    } catch (error: any) {
-      console.error(error);
-      alert(error.message || "خطا در اتصال به کیف پول");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // تابع قطع اتصال
-  const disconnectWallet = async (walletId: string) => {
-    try {
-      await walletManager.disconnect();
-      // حذف ولت از لیست UI
-      setWallets(wallets.filter(w => w.id !== walletId));
-    } catch (error: any) {
-      alert(error.message || "خطا در قطع اتصال");
-    }
-  };
+  // لیست ولت‌های متصل برای نمایش (فعلاً فقط یکی)
+  const wallets: ConnectedWallet[] = isConnected && address ? [{
+    id: 'active_wallet',
+    name: availableWallets.find(w => w.id === 'metamask')?.name || 'MetaMask',
+    address: address,
+    chain: 'Ethereum',
+    isActive: true,
+    icon: '🦊',
+    balance: `${balance} ETH`
+  }] : [];
 
   return (
     <div className="container pb-4">
@@ -139,7 +104,7 @@ export default function Wallet() {
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => disconnectWallet(wallet.id)}
+                onClick={disconnect}
                 className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all duration-300 ${
                   wallet.isActive
                     ? 'glass text-danger hover:bg-danger/10 border border-border-glass'
@@ -153,14 +118,16 @@ export default function Wallet() {
         ))}
       </div>
 
-      {/* دکمه اتصال کیف پول جدید */}
-      <button
-        onClick={connectWallet}
-        disabled={isLoading}
-        className="w-full py-4 bg-gradient-to-r from-accent to-accent-glow text-white text-sm font-bold rounded-xl shadow-lg shadow-accent-glow hover:shadow-xl hover:shadow-accent-glow/50 transition-all duration-300 transform hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <span>+</span> {isLoading ? "در حال اتصال..." : t('Connect New Wallet')}
-      </button>
+      {/* دکمه اتصال کیف پول */}
+      {!isConnected && (
+        <button
+          onClick={() => connect('metamask')}
+          disabled={isConnecting}
+          className="w-full py-4 bg-gradient-to-r from-accent to-accent-glow text-white text-sm font-bold rounded-xl shadow-lg shadow-accent-glow hover:shadow-xl hover:shadow-accent-glow/50 transition-all duration-300 transform hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <span>+</span> {isConnecting ? "در حال اتصال..." : t('Connect New Wallet')}
+        </button>
+      )}
 
       {/* اطلاعات امنیتی */}
       <div className="glass-card mt-6 border border-border-glass">
