@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ذخیره تمام تصمیمات و معاملات کاربر
+model Event {
+  id        String   @id @default(cuid())
+  userId    String   @index
+  type      String   // BUY, SELL, SWAP, HOLD
+  asset     String   // BTC, ETH, SOL
+  amount    Float
+  price     Float
+  timestamp DateTime @default(now())
+  metadata  Json?    // اطلاعات اضافی مثل احساسات کاربر
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// برای محاسبه سطح هوش و سبک ترید
+model DecisionMetric {
+  id        String @id @default(cuid())
+  userId    String @unique
+  score     Int    // 0-100
+  style     String // Conservative, Aggressive, Balanced
+  riskLevel Float  // 0.0 - 1.0
+  
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
