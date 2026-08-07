@@ -1,2 +1,7 @@
 packages:
   - "packages/*"
+  - "core"
+  - "frontend"
+  - "adapters"
+  - "backend"
+  - "shared"
