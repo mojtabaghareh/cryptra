@@ -51,4 +51,3 @@ export class PhantomAdapter implements IWalletAdapter {
   async switchChain(chainId: number | string): Promise<void> {
     console.warn('Phantom does not support switching chains');
   }
-}
