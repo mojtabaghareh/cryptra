@@ -1,20 +1,48 @@
 // ============================================================
-// Cryptra V2.9 — MetaMask Provider
-// File: metamask.ts
-// EIP-1193 Provider
+// Cryptra V2.9 — Phantom Solana Provider
+// File: phantom.ts
+// Production / Non-Custodial
 // ============================================================
 
-export interface EIP1193RequestArguments {
-  method: string;
-  params?: unknown[];
+export interface PhantomPublicKey {
+  toString(): string;
 }
 
-export interface MetaMaskProvider {
-  isMetaMask?: boolean;
+export interface PhantomConnectResult {
+  publicKey: PhantomPublicKey;
+}
 
-  request(
-    args: EIP1193RequestArguments,
-  ): Promise<unknown>;
+export interface PhantomSignatureResult {
+  signature: Uint8Array;
+}
+
+export interface PhantomSendTransactionResult {
+  signature: string;
+}
+
+export interface PhantomProvider {
+  isPhantom?: boolean;
+
+  isConnected: boolean;
+
+  publicKey: PhantomPublicKey | null;
+
+  connect(
+    options?: {
+      onlyIfTrusted?: boolean;
+    },
+  ): Promise<PhantomConnectResult>;
+
+  disconnect(): Promise<void>;
+
+  signMessage(
+    message: Uint8Array,
+    display?: 'utf8' | 'hex',
+  ): Promise<PhantomSignatureResult>;
+
+  signAndSendTransaction(
+    transaction: unknown,
+  ): Promise<PhantomSendTransactionResult>;
 
   on(
     event: string,
@@ -31,46 +59,41 @@ export interface MetaMaskProvider {
   ): void;
 }
 
-interface EthereumWindow extends Window {
-  ethereum?: MetaMaskProvider & {
-    providers?: MetaMaskProvider[];
+interface PhantomWindow extends Window {
+  phantom?: {
+    solana?: PhantomProvider;
   };
+
+  solana?: PhantomProvider;
 }
 
-function getWindow(): EthereumWindow | null {
+function getWindow(): PhantomWindow | null {
   if (typeof window === 'undefined') {
     return null;
   }
 
-  return window as EthereumWindow;
+  return window as PhantomWindow;
 }
 
-export function getMetaMaskProvider(): MetaMaskProvider | null {
-  const ethereum = getWindow()?.ethereum;
+export function getPhantomProvider(): PhantomProvider | null {
+  const win = getWindow();
 
-  if (!ethereum) {
+  const provider =
+    win?.phantom?.solana ??
+    win?.solana ??
+    null;
+
+  if (!provider) {
     return null;
   }
 
-  // Multiple injected EVM wallets can exist.
-  // Prefer the provider explicitly identified as MetaMask.
-  if (Array.isArray(ethereum.providers)) {
-    const metaMaskProvider = ethereum.providers.find(
-      provider => provider.isMetaMask === true,
-    );
-
-    if (metaMaskProvider) {
-      return metaMaskProvider;
-    }
+  if (provider.isPhantom !== true) {
+    return null;
   }
 
-  if (ethereum.isMetaMask === true) {
-    return ethereum;
-  }
-
-  return null;
+  return provider;
 }
 
-export function isMetaMaskAvailable(): boolean {
-  return getMetaMaskProvider() !== null;
+export function isPhantomAvailable(): boolean {
+  return getPhantomProvider() !== null;
 }
