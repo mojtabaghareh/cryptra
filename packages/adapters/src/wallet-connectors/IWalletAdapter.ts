@@ -1,106 +1,78 @@
 // ============================================================
-// Cryptra — IWalletAdapter.ts
-// Core Wallet Adapter Interface
-// Version: 2.0.0
+// Cryptra V2.9 — Wallet Adapter Interface
+// File: IWalletAdapter.ts
+// Production / Non-Custodial
 // ============================================================
 
-export type WalletChain =
-  | 'ethereum'
-  | 'bsc'
-  | 'polygon'
-  | 'arbitrum'
-  | 'optimism'
-  | 'base'
-  | 'solana'
-  | 'ton';
-
-export type WalletProvider =
-  | 'metamask'
-  | 'phantom'
-  | 'trust-wallet'
-  | 'walletconnect'
-  | 'ton-connect';
+export type WalletChainType = 'evm' | 'solana' | 'ton';
 
 export interface WalletAccount {
   address: string;
-  chain: WalletChain;
-  chainId: number | string;
-  provider: WalletProvider;
+  chainType: WalletChainType;
+  chainId?: number | string;
 }
 
-export interface TransactionRequest {
+export interface WalletConnectOptions {
+  chainId?: number | string;
+  onlyIfTrusted?: boolean;
+}
+
+export interface EvmTransaction {
+  from?: string;
   to: string;
   value?: string;
   data?: string;
-  chainId?: number | string;
-  gasLimit?: string;
+  gas?: string;
   gasPrice?: string;
+  maxFeePerGas?: string;
+  maxPriorityFeePerGas?: string;
+  nonce?: string;
 }
 
-export interface TransactionResult {
-  hash: string;
-  chain: WalletChain;
+export interface TonTransactionMessage {
+  address: string;
+  amount: string;
+  payload?: string;
 }
 
-export interface WalletCapabilities {
-  connect: boolean;
-  disconnect: boolean;
-  balance: boolean;
-  transactions: boolean;
-  sendTransaction: boolean;
-  switchChain: boolean;
-  signMessage: boolean;
+export interface TonTransaction {
+  validUntil: number;
+  messages: TonTransactionMessage[];
+}
+
+export interface WalletEventMap {
+  accountsChanged: (accounts: string[]) => void;
+  chainChanged: (chainId: string) => void;
+  disconnect: (error?: unknown) => void;
 }
 
 export interface IWalletAdapter {
-  readonly id: WalletProvider;
+  readonly id: string;
   readonly name: string;
-  readonly installed: boolean;
+  readonly chainType: WalletChainType;
 
-  /**
-   * قابلیت‌های کیف پول
-   */
-  readonly capabilities: WalletCapabilities;
+  isAvailable(): boolean;
 
-  /**
-   * اتصال کیف پول
-   */
-  connect(): Promise<WalletAccount>;
+  isConnected(): boolean;
 
-  /**
-   * قطع اتصال
-   */
+  connect(options?: WalletConnectOptions): Promise<WalletAccount>;
+
   disconnect(): Promise<void>;
 
-  /**
-   * بررسی وضعیت اتصال
-   */
-  isConnected(): Promise<boolean>;
-
-  /**
-   * دریافت حساب فعال
-   */
   getAccount(): Promise<WalletAccount | null>;
 
-  /**
-   * دریافت موجودی Native
-   */
-  getBalance(): Promise<string>;
+  getAddress(): Promise<string | null>;
 
-  /**
-   * ارسال تراکنش
-   */
-  sendTransaction(
-    tx: TransactionRequest
-  ): Promise<TransactionResult>;
+  getChainId(): Promise<number | string | null>;
 
-  /**
-   * تغییر شبکه
-   */
-  switchChain(chainId: number | string): Promise<void>;
+  signMessage(message: string): Promise<string>;
 
-  /**
-   * امضای پیام
-   */
-  signMessage?(message: string): Promise<string>;
+  sendTransaction(transaction: unknown): Promise<string>;
+
+  on<K extends keyof WalletEventMap>(
+    event: K,
+    listener: WalletEventMap[K],
+  ): () => void;
+
+  removeAllListeners(): void;
 }
