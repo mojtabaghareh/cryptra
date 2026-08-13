@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "allowJs": false,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@cryptra/core": ["packages/core/src"],
+      "@cryptra/wallets": ["packages/wallets/src"],
+      "@cryptra/ui": ["packages/ui/src"],
+      "@cryptra/i18n": ["packages/i18n/src"],
+      "@cryptra/market-data": ["packages/market-data/src"],
+      "@cryptra/swap-engine": ["packages/swap-engine/src"],
+      "@cryptra/perp-engine": ["packages/perp-engine/src"],
+      "@cryptra/xp": ["packages/xp/src"],
+      "@cryptra/levels": ["packages/levels/src"],
+      "@cryptra/achievements": ["packages/achievements/src"],
+      "@cryptra/rewards": ["packages/rewards/src"],
+      "@cryptra/referral": ["packages/referral/src"],
+      "@cryptra/telegram": ["packages/telegram/src"],
+      "@cryptra/security": ["packages/security/src"]
+    }
+  },
+  "exclude": ["node_modules", "dist", ".turbo"]
+}
