@@ -1,69 +1,59 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { randomUUID } from 'node:crypto';
-import {
-  AppError,
-  ErrorCodes,
-  validateWalletAddress,
-  isEvmNetwork,
-  type ChainType,
-  type NetworkId,
-  type Wallet,
-  type WalletProviderId,
-} from '@cryptra/core';
-import {
-  BalanceService,
-  EVMHistory,
-  SolanaHistory,
-  TonHistory,
-  type EvmHistoryEntry,
-  type SolanaHistoryEntry,
-  type TonHistoryEntry,
-} from '@cryptra/wallets';
+import { z } from 'zod';
+import { AppError, ErrorCodes, isEvmNetwork, type NetworkId } from '@cryptra/core';
+import type { WalletService } from '@cryptra/service-wallets';
 import { verifyEvmSignature, verifySolanaSignature, verifyTonProofSignature } from '../middleware/auth';
 
-/**
- * Persistence contract for connected Wallet records. Concrete storage is
- * wired at server bootstrap (see database/schema) — this controller never
- * touches a datastore directly, and NEVER stores a private key or seed.
- */
-export interface WalletRepository {
-  create(wallet: Wallet): Promise<Wallet>;
-  findById(id: string): Promise<Wallet | null>;
-  findByAddress(userId: string, address: string): Promise<Wallet | null>;
-  listByUserId(userId: string): Promise<Wallet[]>;
-  setPrimary(userId: string, walletId: string): Promise<Wallet>;
-}
+const connectWalletBodySchema = z.object({
+  chainType: z.enum(['evm', 'solana', 'ton']),
+  address: z.string().min(1),
+  provider: z.enum([
+    'metamask',
+    'trustwallet',
+    'walletconnect',
+    'phantom',
+    'coinbase',
+    'rabby',
+    'ledger',
+    'trezor',
+    'tonconnect',
+  ]),
+  message: z.string().min(1),
+  signature: z.string().min(1),
+  tonPublicKeyHex: z.string().min(1).optional(),
+  label: z.string().min(1).max(64).optional(),
+});
 
-interface ConnectWalletBody {
-  chainType: ChainType;
-  address: string;
-  provider: WalletProviderId;
-  message: string;
-  signature: string;
-  /** Required only for TON ton_proof verification. */
-  tonPublicKeyHex?: string;
-}
+const walletParamsSchema = z.object({ walletId: z.string().uuid() });
 
-const balanceService = new BalanceService();
-const evmHistory = new EVMHistory();
-const solanaHistory = new SolanaHistory();
-const tonHistory = new TonHistory();
+const networkQuerySchema = z.object({ networkId: z.string().min(1) });
+
+function parseNetworkId(raw: string): NetworkId {
+  if (raw === 'solana' || raw === 'ton') return raw;
+  const numeric = Number(raw);
+  if (!Number.isInteger(numeric) || numeric <= 0) {
+    throw new AppError({ code: ErrorCodes.VALIDATION_FAILED, message: `Invalid networkId "${raw}".` });
+  }
+  return numeric as NetworkId;
+}
 
 export class WalletController {
-  constructor(private readonly walletRepository: WalletRepository) {}
+  constructor(private readonly walletService: WalletService) {}
 
-  async connectWallet(
-    request: FastifyRequest<{ Body: ConnectWalletBody }>,
-    reply: FastifyReply,
-  ): Promise<void> {
+  async connectWallet(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     if (!request.user) {
       throw new AppError({ code: ErrorCodes.UNAUTHORIZED, message: 'No authenticated session.' });
     }
 
-    const { chainType, address, provider, message, signature, tonPublicKeyHex } = request.body;
-    validateWalletAddress({ chainType, address });
+    const body = connectWalletBodySchema.parse(request.body);
 
-    const signatureValid = this.verifyOwnership(chainType, address, message, signature, tonPublicKeyHex);
+    const signatureValid = this.verifyOwnership(
+      body.chainType,
+      body.address,
+      body.message,
+      body.signature,
+      body.tonPublicKeyHex,
+    );
     if (!signatureValid) {
       throw new AppError({
         code: ErrorCodes.WALLET_SIGNATURE_INVALID,
@@ -71,103 +61,81 @@ export class WalletController {
       });
     }
 
-    const existing = await this.walletRepository.findByAddress(request.user.userId, address);
-    if (existing) {
-      throw new AppError({ code: ErrorCodes.CONFLICT, message: 'This wallet is already connected.' });
-    }
+    const defaultNetworkId: NetworkId = body.chainType === 'evm' ? 1 : body.chainType === 'solana' ? 'solana' : 'ton';
 
-    const existingWallets = await this.walletRepository.listByUserId(request.user.userId);
-    const now = new Date().toISOString();
-
-    const wallet: Wallet = {
-      id: randomUUID(),
+    const wallet = await this.walletService.connectWallet({
       userId: request.user.userId,
-      address,
-      chainType,
-      networkId: chainType === 'evm' ? 1 : chainType === 'solana' ? 'solana' : 'ton',
-      provider,
-      label: null,
-      isPrimary: existingWallets.length === 0,
-      connectedAt: now,
-      lastUsedAt: now,
-      disconnectedAt: null,
-    };
+      chainType: body.chainType,
+      address: body.address,
+      provider: body.provider,
+      defaultNetworkId,
+      label: body.label,
+    });
 
-    const created = await this.walletRepository.create(wallet);
-    reply.status(201).send(created);
+    reply.status(201).send(wallet);
   }
 
   async listWallets(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     if (!request.user) {
       throw new AppError({ code: ErrorCodes.UNAUTHORIZED, message: 'No authenticated session.' });
     }
-    const wallets = await this.walletRepository.listByUserId(request.user.userId);
+    const wallets = await this.walletService.listWallets(request.user.userId);
     reply.status(200).send(wallets);
   }
 
-  async setPrimaryWallet(
-    request: FastifyRequest<{ Params: { walletId: string } }>,
-    reply: FastifyReply,
-  ): Promise<void> {
+  async getWallet(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     if (!request.user) {
       throw new AppError({ code: ErrorCodes.UNAUTHORIZED, message: 'No authenticated session.' });
     }
-    const updated = await this.walletRepository.setPrimary(request.user.userId, request.params.walletId);
-    reply.status(200).send(updated);
+    const { walletId } = walletParamsSchema.parse(request.params);
+    const wallet = await this.walletService.getWallet(walletId, request.user.userId);
+    reply.status(200).send(wallet);
   }
 
-  async getBalance(
-    request: FastifyRequest<{ Params: { walletId: string }; Querystring: { networkId: string } }>,
-    reply: FastifyReply,
-  ): Promise<void> {
-    const wallet = await this.requireOwnedWallet(request);
-    const networkId = this.parseNetworkId(request.query.networkId);
+  async setPrimaryWallet(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    if (!request.user) {
+      throw new AppError({ code: ErrorCodes.UNAUTHORIZED, message: 'No authenticated session.' });
+    }
+    const { walletId } = walletParamsSchema.parse(request.params);
+    const wallet = await this.walletService.setPrimaryWallet(walletId, request.user.userId);
+    reply.status(200).send(wallet);
+  }
 
-    const balance = await balanceService.getNativeBalance(wallet.id, wallet.address, networkId);
+  async disconnectWallet(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    if (!request.user) {
+      throw new AppError({ code: ErrorCodes.UNAUTHORIZED, message: 'No authenticated session.' });
+    }
+    const { walletId } = walletParamsSchema.parse(request.params);
+    const wallet = await this.walletService.disconnectWallet(walletId, request.user.userId);
+    reply.status(200).send(wallet);
+  }
+
+  async getBalance(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    if (!request.user) {
+      throw new AppError({ code: ErrorCodes.UNAUTHORIZED, message: 'No authenticated session.' });
+    }
+    const { walletId } = walletParamsSchema.parse(request.params);
+    const { networkId: networkIdRaw } = networkQuerySchema.parse(request.query);
+    const networkId = parseNetworkId(networkIdRaw);
+
+    const balance = await this.walletService.getNativeBalance(walletId, request.user.userId, networkId);
     reply.status(200).send(balance);
   }
 
-  async getHistory(
-    request: FastifyRequest<{ Params: { walletId: string }; Querystring: { networkId: string } }>,
-    reply: FastifyReply,
-  ): Promise<void> {
-    const wallet = await this.requireOwnedWallet(request);
-    const networkId = this.parseNetworkId(request.query.networkId);
-
-    let history: EvmHistoryEntry[] | SolanaHistoryEntry[] | TonHistoryEntry[];
-    if (isEvmNetwork(networkId)) {
-      history = await evmHistory.getHistory(wallet.address, networkId);
-    } else if (networkId === 'solana') {
-      history = await solanaHistory.getHistory(wallet.address);
-    } else {
-      history = await tonHistory.getHistory(wallet.address);
-    }
-
-    reply.status(200).send(history);
-  }
-
-  private async requireOwnedWallet(request: FastifyRequest<{ Params: { walletId: string } }>): Promise<Wallet> {
+  async getHistory(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     if (!request.user) {
       throw new AppError({ code: ErrorCodes.UNAUTHORIZED, message: 'No authenticated session.' });
     }
-    const wallet = await this.walletRepository.findById(request.params.walletId);
-    if (!wallet || wallet.userId !== request.user.userId) {
-      throw new AppError({ code: ErrorCodes.NOT_FOUND, message: 'Wallet not found.' });
-    }
-    return wallet;
-  }
+    const { walletId } = walletParamsSchema.parse(request.params);
+    const { networkId: networkIdRaw } = networkQuerySchema.parse(request.query);
+    const networkId = parseNetworkId(networkIdRaw);
 
-  private parseNetworkId(raw: string): NetworkId {
-    if (raw === 'solana' || raw === 'ton') return raw;
-    const numeric = Number(raw);
-    if (!Number.isInteger(numeric) || numeric <= 0) {
-      throw new AppError({ code: ErrorCodes.VALIDATION_FAILED, message: `Invalid networkId "${raw}".` });
-    }
-    return numeric as NetworkId;
+    const history = await this.walletService.getHistory(walletId, request.user.userId, networkId);
+    reply.status(200).send(history);
   }
 
   private verifyOwnership(
-    chainType: ChainType,
+    chainType: 'evm' | 'solana' | 'ton',
     address: string,
     message: string,
     signature: string,
@@ -187,5 +155,10 @@ export class WalletController {
     }
     return verifyTonProofSignature({ message, signatureBase64: signature, publicKeyHex: tonPublicKeyHex, address });
   }
-}
 
+  static assertEvmNetwork(networkId: NetworkId): void {
+    if (!isEvmNetwork(networkId) && networkId !== 'solana' && networkId !== 'ton') {
+      throw new AppError({ code: ErrorCodes.WALLET_CHAIN_UNSUPPORTED, message: 'Unsupported network.' });
+    }
+  }
+}
