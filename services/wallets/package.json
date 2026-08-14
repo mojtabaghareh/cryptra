@@ -1,0 +1,29 @@
+{
+  "name": "@cryptra/service-wallets",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cryptra Wallets Service — persistence and business logic for the connected-Wallet domain (services/wallets), backed by PostgreSQL. Strictly non-custodial.",
+  "license": "UNLICENSED",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --ext .ts",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@cryptra/core": "workspace:*",
+    "@cryptra/wallets": "workspace:*",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "rimraf": "^6.0.1",
+    "@types/node": "^22.7.4",
+    "@types/pg": "^8.11.10"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  }
+}
