@@ -49,4 +49,3 @@ export interface WalletBalance {
   decimals: number;
   fetchedAt: string;
 }
-
