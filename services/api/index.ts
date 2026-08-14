@@ -2,53 +2,12 @@ import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
-import { AppError, ErrorCodes } from '@cryptra/core';
+import { createUserService } from '@cryptra/service-users';
+import { createWalletService } from '@cryptra/service-wallets';
 import { registerRateLimit } from './middleware/rateLimit';
 import { registerErrorHandler } from './middleware/errorHandler';
 import { userRoutes } from './routes/user.routes';
 import { walletRoutes } from './routes/wallet.routes';
-import type { UserRepository } from './controllers/UserController';
-import type { WalletRepository } from './controllers/WalletController';
-
-/**
- * Persistence layer is provided by database/ + services/users /
- * services/wallets once implemented. Until that is wired in, this
- * placeholder honestly reports that persistence is not yet available
- * instead of returning fabricated data.
- */
-function createUnimplementedUserRepository(): UserRepository {
-  const notImplemented = (): never => {
-    throw new AppError({
-      code: ErrorCodes.UNKNOWN,
-      message: 'User persistence is not yet wired (database/services/users pending).',
-      statusCode: 501,
-    });
-  };
-  return {
-    create: async () => notImplemented(),
-    findById: async () => notImplemented(),
-    findByTelegramId: async () => notImplemented(),
-    findByReferralCode: async () => notImplemented(),
-    update: async () => notImplemented(),
-  };
-}
-
-function createUnimplementedWalletRepository(): WalletRepository {
-  const notImplemented = (): never => {
-    throw new AppError({
-      code: ErrorCodes.UNKNOWN,
-      message: 'Wallet persistence is not yet wired (database/services/wallets pending).',
-      statusCode: 501,
-    });
-  };
-  return {
-    create: async () => notImplemented(),
-    findById: async () => notImplemented(),
-    findByAddress: async () => notImplemented(),
-    listByUserId: async () => notImplemented(),
-    setPrimary: async () => notImplemented(),
-  };
-}
 
 async function buildServer() {
   const app = Fastify({
@@ -67,11 +26,11 @@ async function buildServer() {
 
   registerErrorHandler(app);
 
-  const userRepository = createUnimplementedUserRepository();
-  const walletRepository = createUnimplementedWalletRepository();
+  const userService = createUserService();
+  const walletService = createWalletService();
 
-  await app.register(userRoutes, { prefix: '/api/v1/users', userRepository });
-  await app.register(walletRoutes, { prefix: '/api/v1/wallets', walletRepository });
+  await app.register(userRoutes, { prefix: '/api/v1/users', userService });
+  await app.register(walletRoutes, { prefix: '/api/v1/wallets', walletService });
 
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
 
@@ -92,4 +51,3 @@ async function main() {
 }
 
 main();
-
