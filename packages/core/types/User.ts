@@ -42,4 +42,3 @@ export interface UserSession {
   expiresAt: string;
   authMethod: 'telegram' | 'wallet-signature';
 }
-
