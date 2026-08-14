@@ -1,0 +1,45 @@
+{
+  "name": "@cryptra/wallets",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cryptra non-custodial Wallet layer — interfaces, real provider adapters (MetaMask, Trust Wallet, WalletConnect, Phantom, TON Connect), balances, transactions, history and the WalletManager orchestrator.",
+  "license": "UNLICENSED",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup index.ts --format cjs,esm --dts --clean",
+    "dev": "tsup index.ts --format cjs,esm --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --ext .ts",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@cryptra/core": "workspace:*",
+    "ethers": "^6.13.4",
+    "@solana/web3.js": "^1.95.4",
+    "@solana/spl-token": "^0.4.9",
+    "@ton/ton": "^15.1.0",
+    "@ton/core": "^0.59.1",
+    "@ton/crypto": "^3.3.0",
+    "@tonconnect/sdk": "^3.0.9",
+    "@walletconnect/ethereum-provider": "^2.17.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "tsup": "^8.3.5",
+    "rimraf": "^6.0.1",
+    "@types/node": "^22.7.4"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  }
+}
