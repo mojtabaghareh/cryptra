@@ -10,11 +10,12 @@
       "import": "./dist/index.mjs",
       "require": "./dist/index.js",
       "types": "./dist/index.d.ts"
-    }
+    },
+    "./styles.css": "./dist/styles.css"
   },
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --external react,react-dom,lucide-react",
-    "dev": "tsup src/index.ts --format cjs,esm --dts --watch --external react,react-dom,lucide-react",
+    "build": "tsup index.ts --format cjs,esm --dts --external react,react-dom,lucide-react",
+    "dev": "tsup index.ts --format cjs,esm --dts --watch --external react,react-dom,lucide-react",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
