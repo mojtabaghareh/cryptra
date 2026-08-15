@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --cryptra-background: #f8fafc;
+    --cryptra-foreground: #0f172a;
+    --cryptra-primary: #0891b2;
+    --cryptra-primary-foreground: #ffffff;
+    --cryptra-secondary: #e2e8f0;
+    --cryptra-secondary-foreground: #1e293b;
+    --cryptra-muted: #f1f5f9;
+    --cryptra-muted-foreground: #64748b;
+    --cryptra-accent: #7c3aed;
+    --cryptra-accent-foreground: #ffffff;
+    --cryptra-destructive: #dc2626;
+    --cryptra-destructive-foreground: #ffffff;
+    --cryptra-border: rgba(0, 0, 0, 0.1);
+    --cryptra-input: rgba(0, 0, 0, 0.05);
+    --cryptra-ring: #0891b2;
+    --cryptra-card: #ffffff;
+    --cryptra-card-foreground: #0f172a;
+  }
+
+  .dark {
+    --cryptra-background: #0a0a0f;
+    --cryptra-foreground: #f8fafc;
+    --cryptra-primary: #00f0ff;
+    --cryptra-primary-foreground: #0a0a0f;
+    --cryptra-secondary: #1a1a2e;
+    --cryptra-secondary-foreground: #e2e8f0;
+    --cryptra-muted: #1e1e2e;
+    --cryptra-muted-foreground: #94a3b8;
+    --cryptra-accent: #b026ff;
+    --cryptra-accent-foreground: #ffffff;
+    --cryptra-destructive: #ef4444;
+    --cryptra-destructive-foreground: #ffffff;
+    --cryptra-border: rgba(255, 255, 255, 0.1);
+    --cryptra-input: rgba(255, 255, 255, 0.05);
+    --cryptra-ring: #00f0ff;
+    --cryptra-card: rgba(255, 255, 255, 0.03);
+    --cryptra-card-foreground: #f8fafc;
+  }
+
+  * {
+    @apply border-cryptra-border;
+  }
+
+  body {
+    @apply bg-cryptra-background text-cryptra-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  [dir="rtl"] {
+    text-align: right;
+  }
+
+  [dir="rtl"] .rtl-flip {
+    transform: scaleX(-1);
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .neon-glow-blue {
+    box-shadow: 0 0 5px #00f0ff, 0 0 20px rgba(0, 240, 255, 0.3);
+  }
+
+  .neon-glow-pink {
+    box-shadow: 0 0 5px #ff00ff, 0 0 20px rgba(255, 0, 255, 0.3);
+  }
+
+  .neon-glow-green {
+    box-shadow: 0 0 5px #39ff14, 0 0 20px rgba(57, 255, 20, 0.3);
+  }
+
+  .glass {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #00f0ff, #b026ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
