@@ -1,7 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    "./src/**/*.{js,ts,jsx,tsx}",
+    "./**/*.{js,ts,jsx,tsx}",
   ],
   darkMode: 'class',
   theme: {
@@ -42,6 +42,7 @@ module.exports = {
         'neon-pulse': 'neon-pulse 2s ease-in-out infinite',
         'fade-in': 'fade-in 0.2s ease-out',
         'slide-up': 'slide-up 0.3s ease-out',
+        'slide-down': 'slide-down 0.3s ease-out',
       },
       keyframes: {
         'neon-pulse': {
@@ -56,8 +57,18 @@ module.exports = {
           '0%': { transform: 'translateY(10px)', opacity: '0' },
           '100%': { transform: 'translateY(0)', opacity: '1' },
         },
+        'slide-down': {
+          '0%': { transform: 'translateY(-10px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
       },
       boxShadow: {
         'neon-blue': '0 0 5px #00f0ff, 0 0 20px #00f0ff40',
         'neon-pink': '0 0 5px #ff00ff, 0 0 20px #ff00ff40',
-        'neon-green': '0 0 5px #39ff14, 
+        'neon-green': '0 0 5px #39ff14, 0 0 20px #39ff1440',
+        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+      },
+    },
+  },
+  plugins: [],
+}
