@@ -1,1 +1,43 @@
+export const colors = {
+  dark: {
+    background: '#0a0a0f',
+    foreground: '#f8fafc',
+    primary: '#00f0ff',
+    'primary-foreground': '#0a0a0f',
+    secondary: '#1a1a2e',
+    'secondary-foreground': '#e2e8f0',
+    muted: '#1e1e2e',
+    'muted-foreground': '#94a3b8',
+    accent: '#b026ff',
+    'accent-foreground': '#ffffff',
+    destructive: '#ef4444',
+    'destructive-foreground': '#ffffff',
+    border: 'rgba(255, 255, 255, 0.1)',
+    input: 'rgba(255, 255, 255, 0.05)',
+    ring: '#00f0ff',
+    card: 'rgba(255, 255, 255, 0.03)',
+    'card-foreground': '#f8fafc',
+  },
+  light: {
+    background: '#f8fafc',
+    foreground: '#0f172a',
+    primary: '#0891b2',
+    'primary-foreground': '#ffffff',
+    secondary: '#e2e8f0',
+    'secondary-foreground': '#1e293b',
+    muted: '#f1f5f9',
+    'muted-foreground': '#64748b',
+    accent: '#7c3aed',
+    'accent-foreground': '#ffffff',
+    destructive: '#dc2626',
+    'destructive-foreground': '#ffffff',
+    border: 'rgba(0, 0, 0, 0.1)',
+    input: 'rgba(0, 0, 0, 0.05)',
+    ring: '#0891b2',
+    card: '#ffffff',
+    'card-foreground': '#0f172a',
+  },
+} as const;
+
+export type ColorTheme = typeof colors.dark;
 
