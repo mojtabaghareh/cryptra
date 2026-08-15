@@ -1,1 +1,42 @@
+@layer base {
+  .theme-dark {
+    --cryptra-background: #0a0a0f;
+    --cryptra-foreground: #f8fafc;
+    --cryptra-primary: #00f0ff;
+    --cryptra-primary-foreground: #0a0a0f;
+    --cryptra-secondary: #1a1a2e;
+    --cryptra-secondary-foreground: #e2e8f0;
+    --cryptra-muted: #1e1e2e;
+    --cryptra-muted-foreground: #94a3b8;
+    --cryptra-accent: #b026ff;
+    --cryptra-accent-foreground: #ffffff;
+    --cryptra-destructive: #ef4444;
+    --cryptra-destructive-foreground: #ffffff;
+    --cryptra-border: rgba(255, 255, 255, 0.1);
+    --cryptra-input: rgba(255, 255, 255, 0.05);
+    --cryptra-ring: #00f0ff;
+    --cryptra-card: rgba(255, 255, 255, 0.03);
+    --cryptra-card-foreground: #f8fafc;
+  }
+
+  .theme-light {
+    --cryptra-background: #f8fafc;
+    --cryptra-foreground: #0f172a;
+    --cryptra-primary: #0891b2;
+    --cryptra-primary-foreground: #ffffff;
+    --cryptra-secondary: #e2e8f0;
+    --cryptra-secondary-foreground: #1e293b;
+    --cryptra-muted: #f1f5f9;
+    --cryptra-muted-foreground: #64748b;
+    --cryptra-accent: #7c3aed;
+    --cryptra-accent-foreground: #ffffff;
+    --cryptra-destructive: #dc2626;
+    --cryptra-destructive-foreground: #ffffff;
+    --cryptra-border: rgba(0, 0, 0, 0.1);
+    --cryptra-input: rgba(0, 0, 0, 0.05);
+    --cryptra-ring: #0891b2;
+    --cryptra-card: #ffffff;
+    --cryptra-card-foreground: #0f172a;
+  }
+}
 
