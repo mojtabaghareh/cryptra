@@ -1,1 +1,386 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  padding: var(--space-4, 16px);
+  min-height: 100vh;
+  background-color: var(--color-bg-primary, #0a0a0f);
+  color: var(--color-text-primary, #ffffff);
+}
+
+.header {
+  padding: var(--space-2, 8px) 0;
+}
+
+.title {
+  font-size: var(--font-size-2xl, 24px);
+  font-weight: var(--font-weight-bold, 700);
+  margin: 0;
+}
+
+.subtitle {
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-text-secondary, #8b8d97);
+  margin: var(--space-1, 4px) 0 0;
+}
+
+/* Summary */
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3, 12px);
+}
+
+.summaryCard {
+  background-color: var(--color-surface-primary, #16162a);
+  border: 1px solid var(--color-border-subtle, rgba(255,255,255,0.06));
+}
+
+.summaryLabel {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-tertiary, #5a5c6a);
+  display: block;
+  margin-bottom: var(--space-1, 4px);
+}
+
+.summaryValue {
+  font-size: var(--font-size-xl, 20px);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-text-primary, #ffffff);
+  font-variant-numeric: tabular-nums;
+}
+
+.summaryValueHighlight {
+  color: var(--color-primary, #6366f1);
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.tabList {
+  display: flex;
+  gap: var(--space-2, 8px);
+  overflow-x: auto;
+  padding-bottom: var(--space-1, 4px);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.tabList::-webkit-scrollbar {
+  display: none;
+}
+
+.tabBtn {
+  flex-shrink: 0;
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  border-radius: var(--radius-full, 9999px);
+  border: 1px solid var(--color-border-subtle, rgba(255,255,255,0.06));
+  background: var(--color-surface-primary, #16162a);
+  color: var(--color-text-secondary, #8b8d97);
+  font-size: var(--font-size-sm, 14px);
+  font-weight: var(--font-weight-medium, 500);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tabBtnActive {
+  background: var(--color-primary, #6366f1);
+  color: #fff;
+  border-color: var(--color-primary, #6366f1);
+}
+
+.tabPanel {
+  padding-top: var(--space-2, 8px);
+}
+
+/* Rewards List */
+.rewardsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.loadingWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+/* Reward Card */
+.rewardCard {
+  background-color: var(--color-surface-primary, #16162a);
+  border: 1px solid var(--color-border-subtle, rgba(255,255,255,0.06));
+  position: relative;
+  overflow: hidden;
+}
+
+.rewardCardClaimed {
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.rewardCardExpired {
+  border-color: rgba(239, 68, 68, 0.3);
+  opacity: 0.7;
+}
+
+.rewardRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3, 12px);
+}
+
+.rewardIconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-lg, 12px);
+  flex-shrink: 0;
+}
+
+.rewardIconToken {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--color-primary, #6366f1);
+}
+
+.rewardIconNFT {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--color-warning, #f59e0b);
+}
+
+.rewardIconXP {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--color-success, #22c55e);
+}
+
+.rewardIconBadge {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--color-info, #3b82f6);
+}
+
+.rewardContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+  flex: 1;
+  min-width: 0;
+}
+
+.rewardHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  flex-wrap: wrap;
+}
+
+.rewardName {
+  font-size: var(--font-size-base, 16px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-primary, #ffffff);
+}
+
+.rewardDesc {
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-text-secondary, #8b8d97);
+  line-height: 1.4;
+}
+
+.rewardMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  flex-wrap: wrap;
+}
+
+.rewardExpiry {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-tertiary, #5a5c6a);
+}
+
+.rewardAmount {
+  font-size: var(--font-size-sm, 14px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-primary, #6366f1);
+  font-variant-numeric: tabular-nums;
+}
+
+.rewardActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  flex-shrink: 0;
+  margin-top: var(--space-1, 4px);
+}
+
+/* Achievements */
+.achievementsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-2, 8px);
+}
+
+.achievementCard {
+  background-color: var(--color-surface-primary, #16162a);
+  border: 1px solid var(--color-border-subtle, rgba(255,255,255,0.06));
+}
+
+.achievementCardUnlocked {
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.achievementIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-lg, 12px);
+  margin-bottom: var(--space-2, 8px);
+}
+
+.achievementIconUnlocked {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--color-primary, #6366f1);
+}
+
+.achievementIconLocked {
+  background: var(--color-surface-secondary, #12121f);
+  color: var(--color-text-tertiary, #5a5c6a);
+}
+
+.achievementName {
+  font-size: var(--font-size-sm, 14px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-primary, #ffffff);
+  display: block;
+  margin-bottom: var(--space-0-5, 2px);
+}
+
+.achievementDesc {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-secondary, #8b8d97);
+  line-height: 1.4;
+  display: block;
+  margin-bottom: var(--space-2, 8px);
+}
+
+.achievementProgressWrapper {
+  margin-top: auto;
+}
+
+.achievementProgressLabel {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-tertiary, #5a5c6a);
+  margin-bottom: var(--space-1, 4px);
+}
+
+.achievementProgressValue {
+  color: var(--color-primary, #6366f1);
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+.achievementReward {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-success, #22c55e);
+  font-weight: var(--font-weight-medium, 500);
+}
+
+/* Streak */
+.streakCard {
+  background-color: var(--color-surface-primary, #16162a);
+  border: 1px solid var(--color-border-subtle, rgba(255,255,255,0.06));
+}
+
+.streakHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3, 12px);
+}
+
+.streakTitle {
+  font-size: var(--font-size-base, 16px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-primary, #ffffff);
+  margin: 0;
+}
+
+.streakValue {
+  font-size: var(--font-size-xl, 20px);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-warning, #f59e0b);
+  font-variant-numeric: tabular-nums;
+}
+
+.streakDays {
+  display: flex;
+  gap: var(--space-1, 4px);
+}
+
+.streakDay {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1, 4px);
+}
+
+.streakDayDot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-xs, 12px);
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+.streakDayDone {
+  background: var(--color-success, #22c55e);
+  color: #fff;
+}
+
+.streakDayMissed {
+  background: var(--color-surface-secondary, #12121f);
+  color: var(--color-text-tertiary, #5a5c6a);
+}
+
+.streakDayToday {
+  background: var(--color-warning, #f59e0b);
+  color: #000;
+}
+
+.streakDayLabel {
+  font-size: var(--font-size-xs, 10px);
+  color: var(--color-text-tertiary, #5a5c6a);
+  text-transform: uppercase;
+}
+
+/* Skeleton */
+.rewardSkeletonInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+  flex: 1;
+}
+
+.errorWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  padding: var(--space-12, 48px) var(--space-4, 16px);
+  text-align: center;
+}
 
