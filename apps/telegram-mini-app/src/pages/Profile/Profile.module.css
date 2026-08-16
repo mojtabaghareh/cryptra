@@ -1,1 +1,446 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+  padding: var(--space-4, 16px);
+  min-height: 100vh;
+  background-color: var(--color-bg-primary, #0a0a0f);
+  color: var(--color-text-primary, #ffffff);
+}
+
+/* Header */
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-2, 8px);
+  padding: var(--space-4, 16px) 0;
+}
+
+.headerLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  padding: var(--space-4, 16px) 0;
+}
+
+.avatarWrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.levelBadge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  border: 2px solid var(--color-bg-primary, #0a0a0f);
+}
+
+.displayName {
+  font-size: var(--font-size-xl, 20px);
+  font-weight: var(--font-weight-bold, 700);
+  margin: 0;
+  color: var(--color-text-primary, #ffffff);
+}
+
+.username {
+  font-size: var(--font-size-base, 16px);
+  color: var(--color-text-secondary, #8b8d97);
+  margin: 0;
+}
+
+.address {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-tertiary, #5a5c6a);
+  font-family: var(--font-mono, 'SF Mono', monospace);
+  background-color: var(--color-surface-primary, #16162a);
+  padding: var(--space-1, 4px) var(--space-2, 8px);
+  border-radius: var(--radius-md, 8px);
+  margin-top: var(--space-1, 4px);
+}
+
+/* Unauthorized / Error states */
+.unauthorized {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3, 12px);
+  padding: var(--space-12, 48px) var(--space-4, 16px);
+  text-align: center;
+  flex: 1;
+}
+
+.unauthorizedTitle {
+  font-size: var(--font-size-lg, 18px);
+  font-weight: var(--font-weight-semibold, 600);
+  margin: 0;
+  color: var(--color-text-primary, #ffffff);
+}
+
+.unauthorizedText {
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-text-secondary, #8b8d97);
+  margin: 0;
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3, 12px);
+  padding: var(--space-12, 48px) var(--space-4, 16px);
+  text-align: center;
+  flex: 1;
+}
+
+.errorText {
+  font-size: var(--font-size-base, 16px);
+  color: var(--color-error, #ef4444);
+  margin: 0;
+}
+
+/* Grid for skeleton loading */
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+/* LevelCard */
+.levelSection {
+  width: 100%;
+}
+
+.levelCard {
+  background: linear-gradient(135deg, var(--color-surface-elevated, #1a1a2e) 0%, var(--color-surface-primary, #16162a) 100%);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.levelCardContent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4, 16px);
+}
+
+.levelIconWrapper {
+  flex-shrink: 0;
+}
+
+.levelInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+  flex: 1;
+  min-width: 0;
+}
+
+.levelHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  flex-wrap: wrap;
+}
+
+.levelTitle {
+  font-size: var(--font-size-lg, 18px);
+  font-weight: var(--font-weight-bold, 700);
+  margin: 0;
+  color: var(--color-text-primary, #ffffff);
+}
+
+.levelNumberBadge {
+  font-variant-numeric: tabular-nums;
+}
+
+.levelDescription {
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-text-secondary, #8b8d97);
+  margin: 0;
+}
+
+.xpToNext {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-primary, #6366f1);
+  margin: var(--space-1, 4px) 0 0;
+  font-weight: var(--font-weight-medium, 500);
+}
+
+/* XPProgress */
+.xpSection {
+  width: 100%;
+}
+
+.xpCard {
+  background-color: var(--color-surface-primary, #16162a);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.xpHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+  margin-bottom: var(--space-3, 12px);
+}
+
+.xpTitle {
+  font-size: var(--font-size-base, 16px);
+  font-weight: var(--font-weight-semibold, 600);
+  margin: 0;
+  color: var(--color-text-primary, #ffffff);
+}
+
+.xpFraction {
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-text-secondary, #8b8d97);
+  font-variant-numeric: tabular-nums;
+}
+
+.xpProgressBar {
+  margin-bottom: var(--space-2, 8px);
+}
+
+.xpLabels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+}
+
+.xpPercentage {
+  font-size: var(--font-size-sm, 14px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-primary, #6366f1);
+}
+
+.xpRemaining {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-tertiary, #5a5c6a);
+}
+
+/* FeeTier */
+.feeSection {
+  width: 100%;
+}
+
+.feeCard {
+  background-color: var(--color-surface-primary, #16162a);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.feeHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  margin-bottom: var(--space-4, 16px);
+}
+
+.feeIconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg, 12px);
+  background-color: rgba(99, 102, 241, 0.15);
+  color: var(--color-primary, #6366f1);
+  flex-shrink: 0;
+}
+
+.feeTitleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+}
+
+.feeTitle {
+  font-size: var(--font-size-base, 16px);
+  font-weight: var(--font-weight-semibold, 600);
+  margin: 0;
+  color: var(--color-text-primary, #ffffff);
+}
+
+.feeBreakdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  padding: var(--space-3, 12px);
+  background-color: var(--color-surface-secondary, #12121f);
+  border-radius: var(--radius-md, 8px);
+  margin-bottom: var(--space-4, 16px);
+}
+
+.feeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+}
+
+.feeRowHighlight {
+  padding-top: var(--space-2, 8px);
+  border-top: 1px dashed var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.feeLabel {
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-text-secondary, #8b8d97);
+}
+
+.feeValue {
+  font-size: var(--font-size-sm, 14px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-primary, #ffffff);
+  font-variant-numeric: tabular-nums;
+}
+
+.feeDiscount {
+  color: var(--color-success, #22c55e);
+}
+
+.feeEffective {
+  color: var(--color-primary, #6366f1);
+  font-size: var(--font-size-base, 16px);
+}
+
+.benefitsSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.benefitsTitle {
+  font-size: var(--font-size-sm, 14px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-secondary, #8b8d97);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.benefitsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.benefitItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-text-primary, #ffffff);
+}
+
+.benefitIcon {
+  color: var(--color-success, #22c55e);
+  flex-shrink: 0;
+}
+
+/* ProfileStats */
+.statsSection {
+  width: 100%;
+}
+
+.sectionTitle {
+  font-size: var(--font-size-lg, 18px);
+  font-weight: var(--font-weight-semibold, 600);
+  margin: 0 0 var(--space-3, 12px);
+  color: var(--color-text-primary, #ffffff);
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3, 12px);
+}
+
+.statCard {
+  background-color: var(--color-surface-primary, #16162a);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.statContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.statIconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md, 8px);
+  flex-shrink: 0;
+}
+
+.statIconvolume {
+  background-color: rgba(99, 102, 241, 0.15);
+  color: var(--color-primary, #6366f1);
+}
+
+.statIcontrades {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: var(--color-info, #3b82f6);
+}
+
+.statIconswaps {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: var(--color-warning, #f59e0b);
+}
+
+.statIconreferrals {
+  background-color: rgba(168, 85, 247, 0.15);
+  color: var(--color-purple, #a855f7);
+}
+
+.statIconstreak {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: var(--color-error, #ef4444);
+}
+
+.statInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5, 2px);
+}
+
+.statValue {
+  font-size: var(--font-size-lg, 18px);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-text-primary, #ffffff);
+  font-variant-numeric: tabular-nums;
+}
+
+.statLabel {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-tertiary, #5a5c6a);
+}
+
+/* Footer */
+.footer {
+  padding: var(--space-4, 16px) 0;
+  text-align: center;
+}
+
+.joinDate {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-tertiary, #5a5c6a);
+  margin: 0;
+}
+
+@media (min-width: 480px) {
+  .statsGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
 
