@@ -1,1 +1,431 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--color-bg-primary, #0a0a0f);
+  color: var(--color-text-primary, #ffffff);
+}
+
+.header {
+  padding: var(--space-4, 16px) var(--space-4, 16px) var(--space-3, 12px);
+}
+
+.title {
+  font-size: var(--font-size-2xl, 24px);
+  font-weight: var(--font-weight-bold, 700);
+  margin: 0;
+}
+
+.subtitle {
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-text-secondary, #8b8d97);
+  margin: var(--space-1, 4px) 0 0;
+}
+
+.tabs {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.tabList {
+  padding: 0 var(--space-4, 16px);
+  border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.tabPanel {
+  flex: 1;
+  padding: var(--space-3, 12px) var(--space-4, 16px) var(--space-6, 24px);
+}
+
+/* ConnectWallet */
+.connectContainer {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: var(--space-4, 16px);
+  background-color: var(--color-bg-primary, #0a0a0f);
+}
+
+.connectHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-8, 32px) var(--space-4, 16px);
+  gap: var(--space-3, 12px);
+}
+
+.connectMainIcon {
+  color: var(--color-primary, #6366f1);
+}
+
+.connectTitle {
+  font-size: var(--font-size-xl, 20px);
+  font-weight: var(--font-weight-bold, 700);
+  margin: 0;
+  color: var(--color-text-primary, #ffffff);
+}
+
+.connectDescription {
+  font-size: var(--font-size-base, 16px);
+  color: var(--color-text-secondary, #8b8d97);
+  margin: 0;
+  max-width: 280px;
+}
+
+.connectAlert {
+  margin-bottom: var(--space-4, 16px);
+}
+
+.providersSection {
+  flex: 1;
+}
+
+.providersTitle {
+  font-size: var(--font-size-sm, 14px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-secondary, #8b8d97);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 var(--space-3, 12px);
+}
+
+.providersList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.providerCard {
+  background-color: var(--color-surface-primary, #16162a);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.providerCard:hover:not(:disabled) {
+  border-color: var(--color-primary, #6366f1);
+}
+
+.providerContent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+}
+
+.providerIcon {
+  flex-shrink: 0;
+  color: var(--color-text-secondary, #8b8d97);
+}
+
+.providerInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5, 2px);
+  flex: 1;
+  min-width: 0;
+}
+
+.providerName {
+  font-size: var(--font-size-base, 16px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-primary, #ffffff);
+}
+
+.providerType {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-tertiary, #5a5c6a);
+}
+
+.providerArrow {
+  flex-shrink: 0;
+  color: var(--color-text-tertiary, #5a5c6a);
+}
+
+.connectFooter {
+  padding: var(--space-4, 16px) 0;
+}
+
+.securityNote {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2, 8px);
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-tertiary, #5a5c6a);
+  margin: 0;
+  text-align: center;
+}
+
+/* WalletAssets */
+.assetsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.assetsLoading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.totalCard {
+  background: linear-gradient(135deg, var(--color-primary, #6366f1) 0%, var(--color-primary-dark, #4f46e5) 100%);
+  border: none;
+}
+
+.totalLabel {
+  font-size: var(--font-size-sm, 14px);
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: var(--font-weight-medium, 500);
+}
+
+.totalAmount {
+  font-size: var(--font-size-2xl, 24px);
+  font-weight: var(--font-weight-bold, 700);
+  color: #ffffff;
+  margin-top: var(--space-1, 4px);
+}
+
+.assetsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.assetCard {
+  background-color: var(--color-surface-primary, #16162a);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.assetCardContent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+}
+
+.assetIconWrapper {
+  flex-shrink: 0;
+}
+
+.assetLogo {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.assetInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5, 2px);
+  flex: 1;
+  min-width: 0;
+}
+
+.assetSymbol {
+  font-size: var(--font-size-base, 16px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-primary, #ffffff);
+}
+
+.assetName {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-tertiary, #5a5c6a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.assetChain {
+  align-self: flex-start;
+  margin-top: var(--space-0-5, 2px);
+}
+
+.assetPrice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-0-5, 2px);
+  flex-shrink: 0;
+}
+
+.assetBalanceUsd {
+  font-size: var(--font-size-base, 16px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-primary, #ffffff);
+}
+
+.assetBalance {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-tertiary, #5a5c6a);
+  font-variant-numeric: tabular-nums;
+}
+
+.assetChange {
+  margin-top: var(--space-0-5, 2px);
+}
+
+.assetSkeletonInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+  flex: 1;
+}
+
+.assetSkeletonPrice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1, 4px);
+}
+
+/* WalletHistory */
+.historyContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.historyLoading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.txList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.txCard {
+  background-color: var(--color-surface-primary, #16162a);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.txCardContent {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3, 12px);
+}
+
+.txIconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.txIconprimary {
+  background-color: rgba(99, 102, 241, 0.15);
+  color: var(--color-primary, #6366f1);
+}
+
+.txIconsuccess {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: var(--color-success, #22c55e);
+}
+
+.txIconwarning {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: var(--color-warning, #f59e0b);
+}
+
+.txIconinfo {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: var(--color-info, #3b82f6);
+}
+
+.txIconneutral {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-tertiary, #5a5c6a);
+}
+
+.txInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5, 2px);
+  flex: 1;
+  min-width: 0;
+}
+
+.txHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+}
+
+.txType {
+  font-size: var(--font-size-sm, 14px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-primary, #ffffff);
+}
+
+.txHash {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-tertiary, #5a5c6a);
+  font-family: var(--font-mono, 'SF Mono', monospace);
+}
+
+.txTime {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-tertiary, #5a5c6a);
+}
+
+.txAmount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-0-5, 2px);
+  flex-shrink: 0;
+}
+
+.txValue {
+  font-size: var(--font-size-sm, 14px);
+  font-weight: var(--font-weight-semibold, 600);
+  font-variant-numeric: tabular-nums;
+}
+
+.txIncoming {
+  color: var(--color-success, #22c55e);
+}
+
+.txOutgoing {
+  color: var(--color-text-primary, #ffffff);
+}
+
+.txFee {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-tertiary, #5a5c6a);
+}
+
+.txSkeletonInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+  flex: 1;
+}
+
+.txSkeletonMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1, 4px);
+}
+
+.loadMoreWrapper {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-4, 16px) 0;
+}
 
