@@ -1,1 +1,214 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  padding: var(--space-4, 16px);
+  min-height: 100vh;
+  background-color: var(--color-bg-primary, #0a0a0f);
+  color: var(--color-text-primary, #ffffff);
+}
+
+.header {
+  padding: var(--space-2, 8px) 0;
+}
+
+.title {
+  font-size: var(--font-size-2xl, 24px);
+  font-weight: var(--font-weight-bold, 700);
+  margin: 0;
+}
+
+.subtitle {
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-text-secondary, #8b8d97);
+  margin: var(--space-1, 4px) 0 0;
+}
+
+/* Filters */
+.filtersContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  margin-bottom: var(--space-2, 8px);
+}
+
+.typeFilters {
+  display: flex;
+  gap: var(--space-2, 8px);
+  overflow-x: auto;
+  padding-bottom: var(--space-1, 4px);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.typeFilters::-webkit-scrollbar {
+  display: none;
+}
+
+.typeFilterBtn {
+  flex-shrink: 0;
+  padding: var(--space-1, 4px) var(--space-2, 8px);
+  border-radius: var(--radius-full, 9999px);
+  border: 1px solid var(--color-border-subtle, rgba(255,255,255,0.06));
+  background: var(--color-surface-primary, #16162a);
+  color: var(--color-text-secondary, #8b8d97);
+  font-size: var(--font-size-xs, 12px);
+  font-weight: var(--font-weight-medium, 500);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.typeFilterBtnActive {
+  background: var(--color-primary, #6366f1);
+  color: #fff;
+  border-color: var(--color-primary, #6366f1);
+}
+
+.timeframeFilters {
+  display: flex;
+  gap: var(--space-2, 8px);
+}
+
+.timeframeFilterBtn {
+  flex: 1;
+  padding: var(--space-2, 8px);
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border-subtle, rgba(255,255,255,0.06));
+  background: var(--color-surface-primary, #16162a);
+  color: var(--color-text-secondary, #8b8d97);
+  font-size: var(--font-size-xs, 12px);
+  font-weight: var(--font-weight-medium, 500);
+  cursor: pointer;
+}
+
+.timeframeFilterBtnActive {
+  background: var(--color-surface-secondary, #12121f);
+  color: var(--color-text-primary, #ffffff);
+  border-color: var(--color-primary, #6366f1);
+}
+
+/* Privacy Note */
+.privacyNote {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  background: var(--color-info-bg, rgba(59,130,246,0.1));
+  border: 1px solid var(--color-info, #3b82f6);
+  border-radius: var(--radius-md, 8px);
+  margin-bottom: var(--space-2, 8px);
+}
+
+.privacyNote p {
+  margin: 0;
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-info, #3b82f6);
+}
+
+/* Activity List */
+.activityList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.loadingWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.activityCard {
+  background-color: var(--color-surface-primary, #16162a);
+  border: 1px solid var(--color-border-subtle, rgba(255,255,255,0.06));
+}
+
+.activityRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3, 12px);
+}
+
+.activityIconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: var(--space-0-5, 2px);
+}
+
+.activityIconprimary {
+  background-color: rgba(99, 102, 241, 0.15);
+  color: var(--color-primary, #6366f1);
+}
+
+.activityIconsucces {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: var(--color-success, #22c55e);
+}
+
+.activityIconwarning {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: var(--color-warning, #f59e0b);
+}
+
+.activityIconinfo {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: var(--color-info, #3b82f6);
+}
+
+.activityIconneutral {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-tertiary, #5a5c6a);
+}
+
+.activityContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+  flex: 1;
+  min-width: 0;
+}
+
+.activityHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+}
+
+.activityDesc {
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-text-primary, #ffffff);
+  line-height: 1.4;
+}
+
+.activityMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+}
+
+.activityTime {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-tertiary, #5a5c6a);
+}
+
+.activitySkeletonInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+  flex: 1;
+}
+
+.loadMoreWrapper {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-4, 16px) 0;
+}
 
