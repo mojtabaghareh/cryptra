@@ -1,1 +1,234 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+  padding: var(--space-4, 16px);
+  min-height: 100vh;
+  background-color: var(--color-bg-primary, #0a0a0f);
+  color: var(--color-text-primary, #ffffff);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3, 12px);
+}
+
+.headerContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--font-size-2xl, 24px);
+  font-weight: var(--font-weight-bold, 700);
+  line-height: 1.2;
+  margin: 0;
+  color: var(--color-text-primary, #ffffff);
+}
+
+.subtitle {
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-text-secondary, #8b8d97);
+  margin: var(--space-1, 4px) 0 0;
+}
+
+.portfolioSection {
+  width: 100%;
+}
+
+.portfolioCard {
+  background: linear-gradient(135deg, var(--color-surface-elevated, #1a1a2e) 0%, var(--color-surface-primary, #16162a) 100%);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.skeletonWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.connectPrompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-4, 16px);
+  padding: var(--space-6, 24px) var(--space-4, 16px);
+}
+
+.connectIcon {
+  color: var(--color-text-tertiary, #5a5c6a);
+}
+
+.connectText {
+  font-size: var(--font-size-base, 16px);
+  color: var(--color-text-secondary, #8b8d97);
+  margin: 0;
+}
+
+.portfolioContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.portfolioHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+}
+
+.portfolioLabel {
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-text-secondary, #8b8d97);
+  font-weight: var(--font-weight-medium, 500);
+}
+
+.changeBadge {
+  font-variant-numeric: tabular-nums;
+}
+
+.balanceAmount {
+  font-size: var(--font-size-3xl, 32px);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-text-primary, #ffffff);
+  line-height: 1.1;
+}
+
+.balanceChange {
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-text-secondary, #8b8d97);
+  margin: 0;
+}
+
+.positive {
+  color: var(--color-success, #22c55e);
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+.negative {
+  color: var(--color-error, #ef4444);
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+.assetCount {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-tertiary, #5a5c6a);
+  margin: var(--space-1, 4px) 0 0;
+}
+
+.errorState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  padding: var(--space-4, 16px);
+  text-align: center;
+}
+
+.errorState p {
+  color: var(--color-text-secondary, #8b8d97);
+  margin: 0;
+}
+
+.walletStatusSection {
+  width: 100%;
+}
+
+.walletCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3, 12px);
+  background-color: var(--color-surface-primary, #16162a);
+}
+
+.walletInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  min-width: 0;
+  flex: 1;
+}
+
+.walletDetails {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5, 2px);
+  min-width: 0;
+}
+
+.walletLabel {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-tertiary, #5a5c6a);
+}
+
+.walletAddress {
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-text-primary, #ffffff);
+  font-family: var(--font-mono, 'SF Mono', monospace);
+  background: none;
+  padding: 0;
+}
+
+.actionsSection {
+  width: 100%;
+}
+
+.sectionTitle {
+  font-size: var(--font-size-lg, 18px);
+  font-weight: var(--font-weight-semibold, 600);
+  margin: 0 0 var(--space-3, 12px);
+  color: var(--color-text-primary, #ffffff);
+}
+
+.actionsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3, 12px);
+}
+
+.actionButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  padding: var(--space-4, 16px) var(--space-3, 12px);
+  height: auto;
+}
+
+.actionButton span {
+  font-size: var(--font-size-sm, 14px);
+}
+
+.marketSection {
+  width: 100%;
+}
+
+.marketCard {
+  background-color: var(--color-surface-primary, #16162a);
+}
+
+.marketPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  padding: var(--space-8, 32px) var(--space-4, 16px);
+  color: var(--color-text-tertiary, #5a5c6a);
+}
+
+.marketPlaceholder p {
+  margin: 0;
+  font-size: var(--font-size-sm, 14px);
+}
+
+@media (min-width: 480px) {
+  .actionsGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
 
