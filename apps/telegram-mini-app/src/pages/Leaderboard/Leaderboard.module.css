@@ -1,1 +1,198 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--color-bg-primary, #0a0a0f);
+  color: var(--color-text-primary, #ffffff);
+}
+
+.header {
+  padding: var(--space-4, 16px) var(--space-4, 16px) var(--space-2, 8px);
+}
+
+.title {
+  font-size: var(--font-size-2xl, 24px);
+  font-weight: var(--font-weight-bold, 700);
+  margin: 0;
+}
+
+.subtitle {
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-text-secondary, #8b8d97);
+  margin: var(--space-1, 4px) 0 0;
+}
+
+.tabs {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.tabList {
+  padding: 0 var(--space-4, 16px);
+  border-bottom: 1px solid var(--color-border-subtle, rgba(255,255,255,0.06));
+}
+
+.tabPanel {
+  flex: 1;
+  padding: var(--space-3, 12px) var(--space-4, 16px) var(--space-6, 24px);
+}
+
+/* Board */
+.boardContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.boardLoading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.timeframeFilter {
+  display: flex;
+  gap: var(--space-2, 8px);
+  margin-bottom: var(--space-2, 8px);
+}
+
+.timeframeBtn {
+  flex: 1;
+  padding: var(--space-2, 8px);
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border-subtle, rgba(255,255,255,0.06));
+  background: var(--color-surface-primary, #16162a);
+  color: var(--color-text-secondary, #8b8d97);
+  font-size: var(--font-size-sm, 14px);
+  font-weight: var(--font-weight-medium, 500);
+  cursor: pointer;
+}
+
+.timeframeBtnActive {
+  background: var(--color-primary, #6366f1);
+  color: #fff;
+  border-color: var(--color-primary, #6366f1);
+}
+
+.leaderList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.leaderCard {
+  background-color: var(--color-surface-primary, #16162a);
+  border: 1px solid var(--color-border-subtle, rgba(255,255,255,0.06));
+}
+
+.leaderCardTop {
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.leaderRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+}
+
+.rankBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: var(--font-size-sm, 14px);
+  font-weight: var(--font-weight-bold, 700);
+  flex-shrink: 0;
+}
+
+.rankGold {
+  background: linear-gradient(135deg, #ffd700, #ffb700);
+  color: #000;
+}
+
+.rankSilver {
+  background: linear-gradient(135deg, #e0e0e0, #c0c0c0);
+  color: #000;
+}
+
+.rankBronze {
+  background: linear-gradient(135deg, #cd7f32, #b87333);
+  color: #fff;
+}
+
+.rankNormal {
+  background: var(--color-surface-secondary, #12121f);
+  color: var(--color-text-tertiary, #5a5c6a);
+}
+
+.leaderInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5, 2px);
+  flex: 1;
+  min-width: 0;
+}
+
+.leaderName {
+  font-size: var(--font-size-sm, 14px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-primary, #ffffff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.leaderMeta {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-tertiary, #5a5c6a);
+}
+
+.leaderStats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-0-5, 2px);
+  flex-shrink: 0;
+}
+
+.xpValue {
+  font-size: var(--font-size-sm, 14px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-primary, #6366f1);
+  font-variant-numeric: tabular-nums;
+}
+
+.winRate {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-tertiary, #5a5c6a);
+}
+
+.volumeText {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-secondary, #8b8d97);
+}
+
+.referralCount {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-tertiary, #5a5c6a);
+}
+
+.earningsText {
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-success, #22c55e);
+  font-weight: var(--font-weight-medium, 500);
+}
+
+.leaderSkeletonInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+  flex: 1;
+}
 
