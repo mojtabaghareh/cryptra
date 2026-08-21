@@ -1,0 +1,33 @@
+{
+  "name": "@cryptra/queue",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Job queue backed by Redis (BullMQ) for Cryptra",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@cryptra/config": "workspace:*",
+    "bullmq": "^5.25.0",
+    "ioredis": "^5.4.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "tsup": "^8.3.5",
+    "rimraf": "^6.0.1",
+    "@types/node": "^22.10.0"
+  }
+}

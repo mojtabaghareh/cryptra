@@ -1,0 +1,33 @@
+{
+  "name": "@cryptra/notifications",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Notification service (Telegram + in-app) for Cryptra",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@cryptra/core": "workspace:*",
+    "@cryptra/config": "workspace:*",
+    "@cryptra/database": "workspace:*",
+    "@cryptra/queue": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "tsup": "^8.3.5",
+    "rimraf": "^6.0.1"
+  }
+}
