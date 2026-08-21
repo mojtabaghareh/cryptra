@@ -26,6 +26,8 @@
     "@cryptra/xp": "workspace:*",
     "@cryptra/levels": "workspace:*",
     "@cryptra/referral": "workspace:*",
+    "@cryptra/portfolio": "workspace:*",
+    "@cryptra/reflection": "workspace:*",
     "@cryptra/monitoring": "workspace:*",
     "@cryptra/service-users": "workspace:*",
     "@cryptra/service-wallets": "workspace:*",
