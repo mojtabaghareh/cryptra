@@ -1,57 +1,53 @@
-import { useState, useCallback } from 'react';
-import { Tabs, TabList, Tab, TabPanel } from '@cryptra/ui';
-import { useTranslation } from '@cryptra/i18n';
-import { useWalletStore } from '@cryptra/wallets';
-import ConnectWallet from './ConnectWallet';
-import WalletAssets from './WalletAssets';
-import WalletHistory from './WalletHistory';
-import styles from './Wallet.module.css';
+import { Card, Button, Badge } from '../../lib/ui';
+import { useWalletStore } from '../../store/walletStore';
 
-type WalletTab = 'assets' | 'history';
-
-export default function Wallet(): JSX.Element {
-  const { t } = useTranslation();
-  const { isConnected } = useWalletStore();
-  const [activeTab, setActiveTab] = useState<WalletTab>('assets');
-
-  const handleTabChange = useCallback((tabId: string): void => {
-    setActiveTab(tabId as WalletTab);
-  }, []);
+export function Wallet() {
+  const isConnected = useWalletStore((s) => s.isConnected);
+  const address = useWalletStore((s) => s.address);
+  const provider = useWalletStore((s) => s.provider);
+  const connect = useWalletStore((s) => s.connect);
+  const disconnect = useWalletStore((s) => s.disconnect);
 
   if (!isConnected) {
-    return <ConnectWallet />;
+    return (
+      <div style={{ padding: 16 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Wallet</h1>
+        <Card padded>
+          <p style={{ marginBottom: 12, color: 'rgba(255,255,255,0.7)' }}>
+            MetaMask · Phantom · TON Connect · WalletConnect
+          </p>
+          <Button fullWidth onClick={() => void connect()}>
+            Connect wallet
+          </Button>
+          <p style={{ marginTop: 12, fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
+            Demo mode until adapters are wired in UI
+          </p>
+        </Card>
+      </div>
+    );
   }
 
   return (
-    <div className={styles.container}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>{t('wallet.title')}</h1>
-        <p className={styles.subtitle}>{t('wallet.subtitle')}</p>
-      </header>
-
-      <Tabs
-        value={activeTab}
-        onChange={handleTabChange}
-        className={styles.tabs}
-      >
-        <TabList className={styles.tabList}>
-          <Tab value="assets" id="tab-assets">
-            {t('wallet.tabs.assets')}
-          </Tab>
-          <Tab value="history" id="tab-history">
-            {t('wallet.tabs.history')}
-          </Tab>
-        </TabList>
-
-        <TabPanel value="assets" className={styles.tabPanel}>
-          <WalletAssets />
-        </TabPanel>
-
-        <TabPanel value="history" className={styles.tabPanel}>
-          <WalletHistory />
-        </TabPanel>
-      </Tabs>
+    <div style={{ padding: 16 }}>
+      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Wallet</h1>
+      <Card padded>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Connected</div>
+            <code style={{ fontSize: 13 }}>
+              {address?.slice(0, 8)}…{address?.slice(-6)}
+            </code>
+            <div style={{ marginTop: 6 }}>
+              <Badge variant="success">{provider ?? 'wallet'}</Badge>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => disconnect()}>
+            Disconnect
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 }
 
+export default Wallet;
