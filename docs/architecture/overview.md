@@ -7,7 +7,7 @@ Cryptra یک **لایه هوش مالی** است، نه یک صرافی.
 
 1. هسته تصمیم‌گیری و تحلیل رفتار (`core`) مستقل و قابل استفاده مجدد باشد.
 2. اتصال به کیف‌پول‌ها و پروتکل‌های خارجی از طریق Adapterها انجام شود.
-3. فرانت (Telegram Mini App + Web) سبک و سریع بماند.
+3. فرانت (Telegram Mini App) سبک و سریع بماند.
 4. سرویس‌ها loosely coupled باشند تا بتوان به راحتی مقیاس‌پذیر شد.
 
 ---
@@ -18,9 +18,8 @@ Cryptra یک **لایه هوش مالی** است، نه یک صرافی.
 اپلیکیشن‌های نهایی که کاربر با آن‌ها تعامل دارد:
 
 - `telegram-mini-app` → رابط اصلی کاربر
-- `web` → نسخه وب
 - `telegram-bot` → اعلان‌ها و دستورات
-- `admin-panel` → مدیریت سیستم
+- `admin-panel` → مدیریت سیستم + مانیتورینگ
 
 ### 2. Packages Layer (Shared Logic)
 منطق کسب‌وکار مشترک و قابل استفاده مجدد:
@@ -76,8 +75,9 @@ Docker, Nginx, PM2, Logging, Monitoring, Backups
 
 1. تکمیل `packages/core` + `packages/wallets`
 2. پیاده‌سازی `services/api` + احراز هویت
-3. ساخت اسکلت `apps/telegram-mini-app`
+3. تکمیل `apps/telegram-mini-app`
 4. اتصال پورتفولیو و Reflection
+5. افزودن لایه Monitoring / Observability
 
 ---
 
