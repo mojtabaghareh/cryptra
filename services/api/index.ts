@@ -8,6 +8,11 @@ import { registerRateLimit } from './middleware/rateLimit';
 import { registerErrorHandler } from './middleware/errorHandler';
 import { userRoutes } from './routes/user.routes';
 import { walletRoutes } from './routes/wallet.routes';
+import { authRoutes } from './routes/auth.routes';
+import { marketRoutes } from './routes/market.routes';
+import { swapRoutes } from './routes/swap.routes';
+import { xpRoutes } from './routes/xp.routes';
+import { referralRoutes } from './routes/referral.routes';
 
 async function buildServer() {
   const app = Fastify({
@@ -29,10 +34,29 @@ async function buildServer() {
   const userService = createUserService();
   const walletService = createWalletService();
 
+  // Public / auth
+  await app.register(authRoutes, { prefix: '/api/v1/auth' });
+  await app.register(marketRoutes, { prefix: '/api/v1/market' });
+
+  // Existing domain routes
   await app.register(userRoutes, { prefix: '/api/v1/users', userService });
   await app.register(walletRoutes, { prefix: '/api/v1/wallets', walletService });
 
-  app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
+  // New domain routes
+  await app.register(swapRoutes, { prefix: '/api/v1/swaps' });
+  await app.register(xpRoutes, { prefix: '/api/v1/xp' });
+  await app.register(referralRoutes, { prefix: '/api/v1/referral' });
+
+  app.get('/health', async () => ({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  }));
+
+  app.get('/ready', async () => ({
+    status: 'ready',
+    timestamp: new Date().toISOString(),
+  }));
 
   return app;
 }
