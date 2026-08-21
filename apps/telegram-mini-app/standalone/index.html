@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <title>Cryptra</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0a0f; --card: #14141c; --border: #252532; --text: #f0f0f5;
+      --muted: #8b8b9e; --accent: #6c5ce7; --accent2: #00d2ff;
+      --green: #00c853; --red: #ff5252;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; min-height: 100dvh; padding-bottom: 80px;
+    }
+    .header { padding: 16px 20px 8px; display: flex; align-items: center; justify-content: space-between; }
+    .logo {
+      font-weight: 700; font-size: 20px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .badge {
+      font-size: 12px; color: var(--muted); background: var(--card);
+      border: 1px solid var(--border); padding: 4px 10px; border-radius: 20px;
+    }
+    .hero { padding: 24px 20px; text-align: center; }
+    .hero h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .hero p { color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 16px 16px; }
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 16px; cursor: pointer;
+    }
+    .card:active { border-color: var(--accent); }
+    .card .icon { font-size: 24px; margin-bottom: 8px; }
+    .card .title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+    .card .sub { font-size: 12px; color: var(--muted); }
+    .prices {
+      margin: 8px 16px 16px; background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 12px 16px;
+    }
+    .prices h3 { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+    .price-row {
+      display: flex; justify-content: space-between; padding: 8px 0;
+      border-bottom: 1px solid var(--border); font-size: 14px;
+    }
+    .price-row:last-child { border-bottom: none; }
+    .up { color: var(--green); } .down { color: var(--red); }
+    .nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: rgba(10,10,15,0.95); border-top: 1px solid var(--border);
+      display: flex; justify-content: space-around;
+      padding: 10px 0 max(10px, env(safe-area-inset-bottom));
+      backdrop-filter: blur(12px);
+    }
+    .nav button {
+      background: none; border: none; color: var(--muted); font-size: 11px;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      cursor: pointer; font-family: inherit;
+    }
+    .nav button.active { color: var(--accent); }
+    .nav .ni { font-size: 20px; }
+    .user-card {
+      margin: 0 16px 16px; background: linear-gradient(135deg, #1a1530, #14141c);
+      border: 1px solid var(--border); border-radius: 16px; padding: 16px;
+    }
+    .user-card .name { font-weight: 600; margin-bottom: 4px; }
+    .user-card .meta { font-size: 12px; color: var(--muted); }
+    .page { display: none; } .page.active { display: block; }
+    .section-title { padding: 8px 20px 12px; font-size: 13px; color: var(--muted); font-weight: 500; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">Cryptra</div>
+    <div class="badge" id="tg-status">Loading…</div>
+  </div>
+  <div id="page-home" class="page active">
+    <div class="hero">
+      <h1>Financial Intelligence</h1>
+      <p>We don't help you trade.<br/>We help you understand how you decide.</p>
+    </div>
+    <div class="user-card">
+      <div class="name" id="user-name">Guest</div>
+      <div class="meta" id="user-meta">Open from Telegram for full experience</div>
+    </div>
+    <div class="section-title">QUICK ACTIONS</div>
+    <div class="grid">
+      <div class="card" data-page="trade"><div class="icon">🔄</div><div class="title">Swap</div><div class="sub">Trade tokens</div></div>
+      <div class="card" data-page="trade"><div class="icon">📈</div><div class="title">Perps</div><div class="sub">Leverage trade</div></div>
+      <div class="card" data-page="wallet"><div class="icon">👛</div><div class="title">Wallet</div><div class="sub">Connect & track</div></div>
+      <div class="card" data-page="profile"><div class="icon">⭐</div><div class="title">XP & Level</div><div class="sub">Your progress</div></div>
+    </div>
+    <div class="prices" id="prices"><h3>MARKETS</h3><div class="price-row"><span>Loading…</span></div></div>
+  </div>
+  <div id="page-trade" class="page">
+    <div class="hero"><h1>Trade</h1><p>Swap & Perpetuals</p></div>
+    <div class="grid">
+      <div class="card"><div class="icon">🔄</div><div class="title">Swap</div><div class="sub">Jupiter · 1inch</div></div>
+      <div class="card"><div class="icon">📊</div><div class="title">Perps</div><div class="sub">Hyperliquid</div></div>
+    </div>
+  </div>
+  <div id="page-wallet" class="page">
+    <div class="hero"><h1>Wallet</h1><p>MetaMask · Phantom · TON · WalletConnect</p></div>
+    <div class="user-card"><div class="name">Not connected</div><div class="meta">Full wallet layer in monorepo packages</div></div>
+  </div>
+  <div id="page-profile" class="page">
+    <div class="hero"><h1>Profile</h1></div>
+    <div class="user-card">
+      <div class="name" id="profile-name">—</div>
+      <div class="meta" id="profile-meta">Level 1 · 0 XP</div>
+    </div>
+  </div>
+  <nav class="nav">
+    <button class="active" data-page="home"><span class="ni">🏠</span>Home</button>
+    <button data-page="trade"><span class="ni">📊</span>Trade</button>
+    <button data-page="wallet"><span class="ni">👛</span>Wallet</button>
+    <button data-page="profile"><span class="ni">👤</span>Profile</button>
+  </nav>
+  <script>
+    const tg = window.Telegram && window.Telegram.WebApp;
+    if (tg) {
+      tg.ready(); tg.expand();
+      try { tg.setHeaderColor('#0a0a0f'); tg.setBackgroundColor('#0a0a0f'); } catch(e) {}
+      document.getElementById('tg-status').textContent = 'Telegram';
+      const u = tg.initDataUnsafe && tg.initDataUnsafe.user;
+      if (u) {
+        const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || 'User';
+        document.getElementById('user-name').textContent = name;
+        document.getElementById('user-meta').textContent = '@' + (u.username || u.id) + ' · ID ' + u.id;
+        document.getElementById('profile-name').textContent = name;
+        document.getElementById('profile-meta').textContent = '@' + (u.username || u.id);
+      }
+    } else {
+      document.getElementById('tg-status').textContent = 'Browser';
+    }
+    function showPage(id) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+      const page = document.getElementById('page-' + id);
+      if (page) page.classList.add('active');
+      document.querySelectorAll('.nav button').forEach(b => { if (b.dataset.page === id) b.classList.add('active'); });
+    }
+    document.querySelectorAll('.nav button').forEach(b => b.addEventListener('click', () => showPage(b.dataset.page)));
+    document.querySelectorAll('.card[data-page]').forEach(c => c.addEventListener('click', () => showPage(c.dataset.page)));
+    fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,toncoin&vs_currencies=usd&include_24hr_change=true')
+      .then(r => r.json()).then(d => {
+        const rows = [['Bitcoin', d.bitcoin],['Ethereum', d.ethereum],['Solana', d.solana],['TON', d.toncoin]];
+        document.getElementById('prices').innerHTML = '<h3>MARKETS</h3>' + rows.map(([n,p]) => {
+          if (!p) return '';
+          const ch = p.usd_24h_change; const cls = ch >= 0 ? 'up' : 'down'; const sign = ch >= 0 ? '+' : '';
+          return '<div class="price-row"><span>'+n+'</span><span>$'+p.usd.toLocaleString(undefined,{maximumFractionDigits:2})+' <span class="'+cls+'">'+sign+(ch||0).toFixed(2)+'%</span></span></div>';
+        }).join('');
+      }).catch(()=>{});
+  </script>
+</body>
+</html>
