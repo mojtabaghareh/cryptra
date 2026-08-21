@@ -26,6 +26,7 @@
     "@cryptra/xp": "workspace:*",
     "@cryptra/levels": "workspace:*",
     "@cryptra/referral": "workspace:*",
+    "@cryptra/monitoring": "workspace:*",
     "@cryptra/service-users": "workspace:*",
     "@cryptra/service-wallets": "workspace:*",
     "fastify": "^4.28.1",
