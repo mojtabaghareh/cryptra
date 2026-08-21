@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 
 export interface TelegramWebApp {
   ready: () => void;
@@ -8,21 +8,8 @@ export interface TelegramWebApp {
   setBackgroundColor: (color: string) => void;
   enableClosingConfirmation: () => void;
   disableClosingConfirmation: () => void;
-  showPopup: (params: { title?: string; message: string; buttons?: Array<{ id: string; text: string }> }) => Promise<{ button_id: string }>;
-  showAlert: (message: string) => Promise<void>;
-  showConfirm: (message: string) => Promise<boolean>;
-  openLink: (url: string, options?: { try_instant_view?: boolean }) => void;
-  openTelegramLink: (url: string) => void;
-  readTextFromClipboard: () => Promise<string | null>;
-  requestWriteAccess: () => Promise<boolean>;
-  requestContact: () => Promise<boolean>;
   MainButton: {
     text: string;
-    color: string;
-    textColor: string;
-    isVisible: boolean;
-    isActive: boolean;
-    isProgressVisible: boolean;
     setText: (text: string) => void;
     onClick: (callback: () => void) => void;
     offClick: (callback: () => void) => void;
@@ -32,13 +19,7 @@ export interface TelegramWebApp {
     disable: () => void;
     showProgress: (leaveActive: boolean) => void;
     hideProgress: () => void;
-    setParams: (params: Partial<{
-      text: string;
-      color: string;
-      textColor: string;
-      isVisible: boolean;
-      isActive: boolean;
-    }>) => void;
+    setParams: (params: Record<string, unknown>) => void;
   };
   BackButton: {
     isVisible: boolean;
@@ -52,18 +33,8 @@ export interface TelegramWebApp {
     notificationOccurred: (type: 'error' | 'success' | 'warning') => void;
     selectionChanged: () => void;
   };
-  themeParams: {
-    bg_color: string;
-    text_color: string;
-    hint_color: string;
-    link_color: string;
-    button_color: string;
-    button_text_color: string;
-    secondary_bg_color: string;
-  };
   initData: string;
   initDataUnsafe: {
-    query_id?: string;
     user?: {
       id: number;
       first_name: string;
@@ -72,28 +43,13 @@ export interface TelegramWebApp {
       language_code?: string;
       is_premium?: boolean;
     };
-    receiver?: Record<string, unknown>;
-    chat?: Record<string, unknown>;
-    chat_type?: string;
-    chat_instance?: string;
-    start_param?: string;
-    can_send_after?: number;
     auth_date: number;
     hash: string;
+    start_param?: string;
   };
   version: string;
   platform: string;
   colorScheme: 'light' | 'dark';
-  isExpanded: boolean;
-  viewportHeight: number;
-  viewportStableHeight: number;
-  isClosingConfirmationEnabled: boolean;
-  headerColor: string;
-  backgroundColor: string;
-  onEvent: (eventType: string, eventHandler: (...args: unknown[]) => void) => void;
-  offEvent: (eventType: string, eventHandler: (...args: unknown[]) => void) => void;
-  sendData: (data: string) => void;
-  switchInlineQuery: (query: string, choose_chat_types?: string[]) => void;
 }
 
 interface TelegramContextValue {
@@ -140,10 +96,16 @@ export const TelegramProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (tg) {
       tg.ready();
       tg.expand();
-      tg.enableClosingConfirmation();
+      try {
+        tg.enableClosingConfirmation();
+      } catch {
+        // older clients
+      }
       setWebApp(tg);
       setIsReady(true);
       tg.HapticFeedback?.impactOccurred('light');
+    } else {
+      setIsReady(true);
     }
   }, []);
 
@@ -164,12 +126,12 @@ export const TelegramProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         webApp.MainButton.setText(text);
         webApp.MainButton.onClick(onClick);
         webApp.MainButton.setParams({
-          color: options?.color || '#00f0ff',
-          textColor: options?.textColor || '#0a0a0f',
+          color: options?.color || '#8b5cf6',
+          textColor: options?.textColor || '#ffffff',
         });
         webApp.MainButton.show();
       },
-      [webApp]
+      [webApp],
     ),
     hide: useCallback(() => {
       webApp?.MainButton.hide();
@@ -177,24 +139,18 @@ export const TelegramProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setLoading: useCallback(
       (loading: boolean) => {
         if (!webApp) return;
-        if (loading) {
-          webApp.MainButton.showProgress(true);
-        } else {
-          webApp.MainButton.hideProgress();
-        }
+        if (loading) webApp.MainButton.showProgress(true);
+        else webApp.MainButton.hideProgress();
       },
-      [webApp]
+      [webApp],
     ),
     setEnabled: useCallback(
       (enabled: boolean) => {
         if (!webApp) return;
-        if (enabled) {
-          webApp.MainButton.enable();
-        } else {
-          webApp.MainButton.disable();
-        }
+        if (enabled) webApp.MainButton.enable();
+        else webApp.MainButton.disable();
       },
-      [webApp]
+      [webApp],
     ),
   };
 
@@ -205,7 +161,7 @@ export const TelegramProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         webApp.BackButton.onClick(onClick);
         webApp.BackButton.show();
       },
-      [webApp]
+      [webApp],
     ),
     hide: useCallback(() => {
       webApp?.BackButton.hide();
@@ -220,4 +176,3 @@ export const TelegramProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     </TelegramContext.Provider>
   );
 };
-
