@@ -1,0 +1,385 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ======================
+// Enums
+// ======================
+
+enum ChainType {
+  EVM
+  SOLANA
+  TON
+}
+
+enum WalletProvider {
+  METAMASK
+  WALLETCONNECT
+  PHANTOM
+  TON_CONNECT
+  TRUST_WALLET
+  OTHER
+}
+
+enum SwapStatus {
+  PENDING
+  QUOTED
+  SUBMITTED
+  CONFIRMED
+  FAILED
+  CANCELLED
+}
+
+enum OrderSide {
+  LONG
+  SHORT
+}
+
+enum OrderType {
+  MARKET
+  LIMIT
+  STOP_MARKET
+  STOP_LIMIT
+}
+
+enum OrderStatus {
+  OPEN
+  FILLED
+  PARTIALLY_FILLED
+  CANCELLED
+  REJECTED
+  EXPIRED
+}
+
+enum PositionStatus {
+  OPEN
+  CLOSED
+  LIQUIDATED
+}
+
+enum XpSource {
+  SWAP
+  TRADE
+  REFERRAL
+  DAILY_LOGIN
+  ACHIEVEMENT
+  LEVEL_UP
+  ADMIN
+  OTHER
+}
+
+enum ReferralStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  FRAUD
+}
+
+enum RewardType {
+  XP
+  FEE_DISCOUNT
+  TOKEN
+  BADGE
+  OTHER
+}
+
+enum NotificationChannel {
+  TELEGRAM
+  IN_APP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  READ
+}
+
+// ======================
+// Models
+// ======================
+
+model User {
+  id              String   @id @default(cuid())
+  telegramId      BigInt   @unique @map("telegram_id")
+  username        String?
+  firstName       String?  @map("first_name")
+  lastName        String?  @map("last_name")
+  languageCode    String?  @map("language_code") @default("en")
+  isPremium       Boolean  @default(false) @map("is_premium")
+  isBot           Boolean  @default(false) @map("is_bot")
+  referralCode    String   @unique @map("referral_code")
+  referredById    String?  @map("referred_by_id")
+  referredBy      User?    @relation("UserReferrals", fields: [referredById], references: [id])
+  referrals       User[]   @relation("UserReferrals")
+  xp              Int      @default(0)
+  level           Int      @default(1)
+  feeTier         Int      @default(0) @map("fee_tier")
+  isActive        Boolean  @default(true) @map("is_active")
+  lastActiveAt    DateTime? @map("last_active_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  wallets         Wallet[]
+  swaps           Swap[]
+  orders          Order[]
+  positions       Position[]
+  xpEvents        XpEvent[]
+  achievements    UserAchievement[]
+  rewards         UserReward[]
+  referralsMade   Referral[] @relation("Referrer")
+  referralReceived Referral? @relation("Referee")
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+
+  @@index([telegramId])
+  @@index([referralCode])
+  @@index([referredById])
+  @@map("users")
+}
+
+model Wallet {
+  id            String         @id @default(cuid())
+  userId        String         @map("user_id")
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address       String
+  chainType     ChainType      @map("chain_type")
+  provider      WalletProvider
+  isPrimary     Boolean        @default(false) @map("is_primary")
+  label         String?
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  @@unique([userId, address, chainType])
+  @@index([userId])
+  @@index([address])
+  @@map("wallets")
+}
+
+model Swap {
+  id              String     @id @default(cuid())
+  userId          String     @map("user_id")
+  user            User       @relation(fields: [userId], references: [id])
+  fromToken       String     @map("from_token")
+  toToken         String     @map("to_token")
+  fromAmount      String     @map("from_amount") // store as string for precision
+  toAmount        String?    @map("to_amount")
+  fromChain       String     @map("from_chain")
+  toChain         String     @map("to_chain")
+  protocol        String?    // 1inch, jupiter, etc.
+  route           Json?
+  txHash          String?    @map("tx_hash")
+  status          SwapStatus @default(PENDING)
+  feeAmount       String?    @map("fee_amount")
+  feePercent      Float?     @map("fee_percent")
+  slippageBps     Int?       @map("slippage_bps")
+  errorMessage    String?    @map("error_message")
+  quotedAt        DateTime?  @map("quoted_at")
+  submittedAt     DateTime?  @map("submitted_at")
+  confirmedAt     DateTime?  @map("confirmed_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([status])
+  @@index([txHash])
+  @@map("swaps")
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  userId          String      @map("user_id")
+  user            User        @relation(fields: [userId], references: [id])
+  protocol        String      // hyperliquid, gmx, etc.
+  symbol         String
+  side            OrderSide
+  type            OrderType
+  size            String
+  price           String?
+  stopPrice       String?     @map("stop_price")
+  leverage        Int?
+  status          OrderStatus @default(OPEN)
+  filledSize      String?     @map("filled_size")
+  avgFillPrice    String?     @map("avg_fill_price")
+  txHash          String?     @map("tx_hash")
+  externalId      String?     @map("external_id")
+  feeAmount       String?     @map("fee_amount")
+  errorMessage    String?     @map("error_message")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+  closedAt        DateTime?   @map("closed_at")
+
+  position        Position?
+
+  @@index([userId])
+  @@index([status])
+  @@index([symbol])
+  @@map("orders")
+}
+
+model Position {
+  id              String         @id @default(cuid())
+  userId          String         @map("user_id")
+  user            User           @relation(fields: [userId], references: [id])
+  orderId         String?        @unique @map("order_id")
+  order           Order?         @relation(fields: [orderId], references: [id])
+  protocol        String
+  symbol         String
+  side            OrderSide
+  size            String
+  entryPrice      String         @map("entry_price")
+  markPrice       String?        @map("mark_price")
+  leverage        Int
+  margin          String?
+  unrealizedPnl   String?        @map("unrealized_pnl")
+  realizedPnl     String?        @map("realized_pnl")
+  liquidationPrice String?       @map("liquidation_price")
+  status          PositionStatus @default(OPEN)
+  openedAt        DateTime       @default(now()) @map("opened_at")
+  closedAt        DateTime?      @map("closed_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([status])
+  @@index([symbol])
+  @@map("positions")
+}
+
+model XpEvent {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source      XpSource
+  amount      Int
+  description String?
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([source])
+  @@map("xp_events")
+}
+
+model Achievement {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  xpReward    Int      @default(0) @map("xp_reward")
+  icon        String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  users       UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String      @map("user_id")
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String      @map("achievement_id")
+  achievement   Achievement @relation(fields: [achievementId], references: [id])
+  unlockedAt    DateTime    @default(now()) @map("unlocked_at")
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+model Referral {
+  id            String         @id @default(cuid())
+  referrerId    String         @map("referrer_id")
+  referrer      User           @relation("Referrer", fields: [referrerId], references: [id])
+  refereeId     String         @unique @map("referee_id")
+  referee       User           @relation("Referee", fields: [refereeId], references: [id])
+  status        ReferralStatus @default(PENDING)
+  rewardAmount  Int?           @map("reward_amount")
+  activatedAt   DateTime?      @map("activated_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  @@index([referrerId])
+  @@map("referrals")
+}
+
+model Reward {
+  id          String     @id @default(cuid())
+  code        String     @unique
+  type        RewardType
+  name        String
+  description String?
+  value       String?    // amount or percentage as string
+  isActive    Boolean    @default(true) @map("is_active")
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  users       UserReward[]
+
+  @@map("rewards")
+}
+
+model UserReward {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rewardId    String   @map("reward_id")
+  reward      Reward   @relation(fields: [rewardId], references: [id])
+  claimedAt   DateTime @default(now()) @map("claimed_at")
+  metadata    Json?
+
+  @@index([userId])
+  @@map("user_rewards")
+}
+
+model Notification {
+  id          String              @id @default(cuid())
+  userId      String              @map("user_id")
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel     NotificationChannel
+  title       String
+  body        String
+  status      NotificationStatus  @default(PENDING)
+  metadata    Json?
+  sentAt      DateTime?           @map("sent_at")
+  readAt      DateTime?           @map("read_at")
+  createdAt   DateTime            @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([status])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?  @map("user_id")
+  user        User?    @relation(fields: [userId], references: [id])
+  action      String
+  resource    String?
+  resourceId  String?  @map("resource_id")
+  ip          String?
+  userAgent   String?  @map("user_agent")
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model FeeTier {
+  id            Int      @id @default(autoincrement())
+  level         Int      @unique
+  name          String
+  feePercent    Float    @map("fee_percent")
+  minXp         Int      @map("min_xp")
+  description   String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("fee_tiers")
+}
