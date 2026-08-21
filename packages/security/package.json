@@ -1,0 +1,35 @@
+{
+  "name": "@cryptra/security",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Security layer: validation, rate limiting, RBAC, audit, circuit breaker",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@cryptra/core": "workspace:*",
+    "@cryptra/config": "workspace:*",
+    "@cryptra/database": "workspace:*",
+    "zod": "^3.23.8",
+    "ioredis": "^5.4.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "tsup": "^8.3.5",
+    "rimraf": "^6.0.1",
+    "@types/node": "^22.10.0"
+  }
+}
