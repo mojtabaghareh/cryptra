@@ -3,7 +3,7 @@ import { AppError, ErrorCodes } from '@cryptra/core';
 
 /**
  * Validate data against a Zod schema.
- * Throws AppError with VALIDATION_ERROR on failure.
+ * Throws AppError with VALIDATION_FAILED on failure.
  */
 export function validate<T extends z.ZodTypeAny>(
   schema: T,
@@ -18,7 +18,7 @@ export function validate<T extends z.ZodTypeAny>(
     }));
 
     throw new AppError({
-      code: ErrorCodes.VALIDATION_ERROR,
+      code: ErrorCodes.VALIDATION_FAILED,
       message: 'Validation failed',
       details: { issues },
     });
