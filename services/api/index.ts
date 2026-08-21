@@ -4,6 +4,13 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import { createUserService } from '@cryptra/service-users';
 import { createWalletService } from '@cryptra/service-wallets';
+import {
+  httpRequestDuration,
+  httpRequestTotal,
+  getMetricsText,
+  runHealthChecks,
+  alertError,
+} from '@cryptra/monitoring';
 import { registerRateLimit } from './middleware/rateLimit';
 import { registerErrorHandler } from './middleware/errorHandler';
 import { userRoutes } from './routes/user.routes';
@@ -31,6 +38,32 @@ async function buildServer() {
 
   registerErrorHandler(app);
 
+  // Metrics middleware
+  app.addHook('onRequest', async (request) => {
+    (request as any).startTime = process.hrtime.bigint();
+  });
+
+  app.addHook('onResponse', async (request, reply) => {
+    const start = (request as any).startTime as bigint | undefined;
+    if (!start) return;
+
+    const durationSec = Number(process.hrtime.bigint() - start) / 1e9;
+    const route = request.routeOptions?.url ?? request.url;
+    const labels = {
+      method: request.method,
+      route,
+      status_code: String(reply.statusCode),
+    };
+
+    httpRequestDuration.observe(labels, durationSec);
+    httpRequestTotal.inc(labels);
+
+    // Alert on 5xx
+    if (reply.statusCode >= 500) {
+      void alertError(`http:${request.method} ${route}`, `status=${reply.statusCode}`);
+    }
+  });
+
   const userService = createUserService();
   const walletService = createWalletService();
 
@@ -38,25 +71,28 @@ async function buildServer() {
   await app.register(authRoutes, { prefix: '/api/v1/auth' });
   await app.register(marketRoutes, { prefix: '/api/v1/market' });
 
-  // Existing domain routes
+  // Domain routes
   await app.register(userRoutes, { prefix: '/api/v1/users', userService });
   await app.register(walletRoutes, { prefix: '/api/v1/wallets', walletService });
-
-  // New domain routes
   await app.register(swapRoutes, { prefix: '/api/v1/swaps' });
   await app.register(xpRoutes, { prefix: '/api/v1/xp' });
   await app.register(referralRoutes, { prefix: '/api/v1/referral' });
 
-  app.get('/health', async () => ({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-  }));
+  // Observability endpoints
+  app.get('/health', async () => {
+    const report = await runHealthChecks();
+    return report;
+  });
 
   app.get('/ready', async () => ({
     status: 'ready',
     timestamp: new Date().toISOString(),
   }));
+
+  app.get('/metrics', async (_request, reply) => {
+    const metrics = await getMetricsText();
+    return reply.type('text/plain; version=0.0.4').send(metrics);
+  });
 
   return app;
 }
