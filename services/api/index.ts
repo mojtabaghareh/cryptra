@@ -20,6 +20,8 @@ import { marketRoutes } from './routes/market.routes';
 import { swapRoutes } from './routes/swap.routes';
 import { xpRoutes } from './routes/xp.routes';
 import { referralRoutes } from './routes/referral.routes';
+import { portfolioRoutes } from './routes/portfolio.routes';
+import { reflectionRoutes } from './routes/reflection.routes';
 
 async function buildServer() {
   const app = Fastify({
@@ -38,7 +40,6 @@ async function buildServer() {
 
   registerErrorHandler(app);
 
-  // Metrics middleware
   app.addHook('onRequest', async (request) => {
     (request as any).startTime = process.hrtime.bigint();
   });
@@ -58,7 +59,6 @@ async function buildServer() {
     httpRequestDuration.observe(labels, durationSec);
     httpRequestTotal.inc(labels);
 
-    // Alert on 5xx
     if (reply.statusCode >= 500) {
       void alertError(`http:${request.method} ${route}`, `status=${reply.statusCode}`);
     }
@@ -67,28 +67,21 @@ async function buildServer() {
   const userService = createUserService();
   const walletService = createWalletService();
 
-  // Public / auth
   await app.register(authRoutes, { prefix: '/api/v1/auth' });
   await app.register(marketRoutes, { prefix: '/api/v1/market' });
-
-  // Domain routes
   await app.register(userRoutes, { prefix: '/api/v1/users', userService });
   await app.register(walletRoutes, { prefix: '/api/v1/wallets', walletService });
   await app.register(swapRoutes, { prefix: '/api/v1/swaps' });
   await app.register(xpRoutes, { prefix: '/api/v1/xp' });
   await app.register(referralRoutes, { prefix: '/api/v1/referral' });
+  await app.register(portfolioRoutes, { prefix: '/api/v1/portfolio' });
+  await app.register(reflectionRoutes, { prefix: '/api/v1/reflection' });
 
-  // Observability endpoints
-  app.get('/health', async () => {
-    const report = await runHealthChecks();
-    return report;
-  });
-
+  app.get('/health', async () => runHealthChecks());
   app.get('/ready', async () => ({
     status: 'ready',
     timestamp: new Date().toISOString(),
   }));
-
   app.get('/metrics', async (_request, reply) => {
     const metrics = await getMetricsText();
     return reply.type('text/plain; version=0.0.4').send(metrics);
