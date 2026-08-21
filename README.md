@@ -31,7 +31,7 @@ Cryptra یک **لایه هوش مالی (Financial Intelligence Layer)** است 
 - سیستم XP، سطح، دستاورد و پاداش
 - سیستم رفرال
 - پشتیبانی از چند زبان (i18n)
-- رابط کاربری به صورت Telegram Mini App + Web App
+- رابط کاربری به صورت **Telegram Mini App + Telegram Bot**
 
 ---
 
@@ -41,9 +41,8 @@ Cryptra یک **لایه هوش مالی (Financial Intelligence Layer)** است 
 cryptra/
 ├── apps/                     # اپلیکیشن‌های نهایی
 │   ├── telegram-mini-app/    # فرانت اصلی (Telegram Mini App)
-│   ├── web/                  # نسخه وب
 │   ├── telegram-bot/         # ربات تلگرام
-│   └── admin-panel/          # پنل ادمین
+│   └── admin-panel/          # پنل ادمین + مانیتورینگ
 │
 ├── packages/                 # پکیج‌های مشترک
 │   ├── core/                 # هسته اصلی (Event Graph, Reflection)
@@ -70,7 +69,9 @@ cryptra/
 ├── database/                 # Schema + Migrations + Seeds
 ├── infrastructure/           # Docker, Nginx, PM2, Monitoring
 └── docs/                     # مستندات
+```
 
+```bash
 # نصب وابستگی‌ها
 pnpm install
 
@@ -79,3 +80,4 @@ pnpm dev
 
 # فقط یک اپ خاص
 pnpm --filter telegram-mini-app dev
+```
