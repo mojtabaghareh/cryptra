@@ -6,3 +6,5 @@ export type {
   SwapExecuteRequest,
   SwapExecuteResult,
 } from './types';
+
+export { jupiterAdapter, oneInchAdapter, JupiterAdapter, OneInchAdapter } from './adapters';
