@@ -1,5 +1,5 @@
 import React from 'react';
-import { I18nProvider, initI18n } from '@cryptra/i18n';
+import { I18nProvider, initI18n } from '../lib/i18n';
 import { ThemeProvider } from '../telegram/theme';
 import { TelegramProvider } from '../telegram/telegram';
 
@@ -9,11 +9,8 @@ export const Providers: React.FC<{ children: React.ReactNode }> = ({ children })
   return (
     <I18nProvider>
       <ThemeProvider>
-        <TelegramProvider>
-          {children}
-        </TelegramProvider>
+        <TelegramProvider>{children}</TelegramProvider>
       </ThemeProvider>
     </I18nProvider>
   );
 };
-
