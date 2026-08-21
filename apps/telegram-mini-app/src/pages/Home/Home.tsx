@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, Button, Skeleton, Badge, PriceDisplay, AssetIcon } from '@cryptra/ui';
-import { useTranslation } from '@cryptra/i18n';
-import { useWalletStore } from '@cryptra/wallets';
-import { formatCurrency, formatPercentage } from '@cryptra/core';
+import { useNavigate } from '@tanstack/react-router';
+import { Card, Button, Skeleton, Badge, PriceDisplay, AssetIcon } from '../../lib/ui';
+import { useTranslation } from '../../lib/i18n';
+import { formatCurrency, formatPercentage } from '../../lib/format';
+import { useWalletStore } from '../../store/walletStore';
 import styles from './Home.module.css';
 
 interface PortfolioSummary {
@@ -13,62 +13,47 @@ interface PortfolioSummary {
   assetCount: number;
 }
 
-interface QuickAction {
-  id: string;
-  labelKey: string;
-  icon: string;
-  path: string;
-  variant: 'primary' | 'secondary' | 'outline';
-}
-
-const QUICK_ACTIONS: QuickAction[] = [
-  { id: 'swap', labelKey: 'home.action.swap', icon: 'swap', path: '/swap', variant: 'primary' },
-  { id: 'send', labelKey: 'home.action.send', icon: 'send', path: '/send', variant: 'secondary' },
-  { id: 'receive', labelKey: 'home.action.receive', icon: 'receive', path: '/receive', variant: 'outline' },
-  { id: 'buy', labelKey: 'home.action.buy', icon: 'buy', path: '/buy', variant: 'outline' },
+const QUICK_ACTIONS = [
+  { id: 'swap', labelKey: 'home.action.swap', icon: 'swap', path: '/trade', variant: 'primary' as const },
+  { id: 'send', labelKey: 'home.action.send', icon: 'send', path: '/wallet', variant: 'secondary' as const },
+  { id: 'receive', labelKey: 'home.action.receive', icon: 'receive', path: '/wallet', variant: 'outline' as const },
+  { id: 'buy', labelKey: 'home.action.buy', icon: 'buy', path: '/markets', variant: 'outline' as const },
 ];
 
-export default function Home(): JSX.Element {
+export function Home(): JSX.Element {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { isConnected, address, connect, disconnect } = useWalletStore();
-  const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const isConnected = useWalletStore((s) => s.isConnected);
+  const address = useWalletStore((s) => s.address);
+  const connect = useWalletStore((s) => s.connect);
+  const disconnect = useWalletStore((s) => s.disconnect);
 
-  const fetchPortfolio = useCallback(async (): Promise<void> => {
+  const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchPortfolio = useCallback(async () => {
     if (!isConnected) {
+      setPortfolio(null);
       setIsLoading(false);
       return;
     }
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/v1/portfolio/summary?address=${encodeURIComponent(address ?? '')}`);
-      if (!response.ok) throw new Error('Failed to fetch portfolio');
-      const data: PortfolioSummary = await response.json();
-      setPortfolio(data);
-    } catch (error) {
-      console.error('Portfolio fetch error:', error);
-      setPortfolio(null);
+      // Demo numbers until API is wired with auth token
+      setPortfolio({
+        totalBalance: 0,
+        totalBalanceChange24h: 0,
+        totalBalanceChangePercentage24h: 0,
+        assetCount: 0,
+      });
     } finally {
       setIsLoading(false);
     }
-  }, [isConnected, address]);
+  }, [isConnected]);
 
   useEffect(() => {
     void fetchPortfolio();
   }, [fetchPortfolio]);
-
-  const handleConnect = async (): Promise<void> => {
-    try {
-      await connect();
-    } catch (error) {
-      console.error('Connection failed:', error);
-    }
-  };
-
-  const handleQuickAction = (path: string): void => {
-    navigate(path);
-  };
 
   const isPositiveChange = (portfolio?.totalBalanceChange24h ?? 0) >= 0;
 
@@ -84,19 +69,18 @@ export default function Home(): JSX.Element {
         </Badge>
       </header>
 
-      <section className={styles.portfolioSection} aria-label={t('home.portfolio.label')}>
+      <section className={styles.portfolioSection}>
         <Card className={styles.portfolioCard} padded>
           {isLoading ? (
             <div className={styles.skeletonWrapper}>
-              <Skeleton variant="text" width="60%" height={32} />
-              <Skeleton variant="text" width="40%" height={20} />
-              <Skeleton variant="text" width="80%" height={48} />
+              <Skeleton width="60%" height={32} />
+              <Skeleton width="40%" height={20} />
             </div>
           ) : !isConnected ? (
             <div className={styles.connectPrompt}>
               <AssetIcon name="wallet" size={48} className={styles.connectIcon} />
               <p className={styles.connectText}>{t('home.connectPrompt')}</p>
-              <Button variant="primary" size="lg" onClick={handleConnect} fullWidth>
+              <Button variant="primary" size="lg" onClick={() => void connect()} fullWidth>
                 {t('wallet.action.connect')}
               </Button>
             </div>
@@ -104,37 +88,24 @@ export default function Home(): JSX.Element {
             <div className={styles.portfolioContent}>
               <div className={styles.portfolioHeader}>
                 <span className={styles.portfolioLabel}>{t('home.portfolio.totalBalance')}</span>
-                <Badge
-                  variant={isPositiveChange ? 'success' : 'error'}
-                  size="sm"
-                  className={styles.changeBadge}
-                >
+                <Badge variant={isPositiveChange ? 'success' : 'error'} size="sm">
                   {isPositiveChange ? '+' : ''}
                   {formatPercentage(portfolio.totalBalanceChangePercentage24h)}
                 </Badge>
               </div>
-              <PriceDisplay
-                value={portfolio.totalBalance}
-                currency="USD"
-                className={styles.balanceAmount}
-              />
+              <PriceDisplay value={portfolio.totalBalance} currency="USD" className={styles.balanceAmount} />
               <p className={styles.balanceChange}>
                 <span className={isPositiveChange ? styles.positive : styles.negative}>
                   {isPositiveChange ? '+' : ''}
                   {formatCurrency(portfolio.totalBalanceChange24h, 'USD')}
-                </span>
-                {' '}{t('home.portfolio.last24h')}
+                </span>{' '}
+                {t('home.portfolio.last24h')}
               </p>
-              {portfolio.assetCount > 0 && (
-                <p className={styles.assetCount}>
-                  {t('home.portfolio.assetCount', { count: portfolio.assetCount })}
-                </p>
-              )}
             </div>
           ) : (
             <div className={styles.errorState}>
               <p>{t('home.portfolio.error')}</p>
-              <Button variant="outline" size="sm" onClick={fetchPortfolio}>
+              <Button variant="outline" size="sm" onClick={() => void fetchPortfolio()}>
                 {t('common.retry')}
               </Button>
             </div>
@@ -142,26 +113,26 @@ export default function Home(): JSX.Element {
         </Card>
       </section>
 
-      {isConnected && (
-        <section className={styles.walletStatusSection} aria-label={t('home.wallet.label')}>
+      {isConnected && address && (
+        <section className={styles.walletStatusSection}>
           <Card className={styles.walletCard} padded>
             <div className={styles.walletInfo}>
               <AssetIcon name="wallet" size={24} />
               <div className={styles.walletDetails}>
                 <span className={styles.walletLabel}>{t('home.wallet.address')}</span>
                 <code className={styles.walletAddress}>
-                  {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : ''}
+                  {address.slice(0, 6)}...{address.slice(-4)}
                 </code>
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={disconnect}>
+            <Button variant="ghost" size="sm" onClick={() => disconnect()}>
               {t('wallet.action.disconnect')}
             </Button>
           </Card>
         </section>
       )}
 
-      <section className={styles.actionsSection} aria-label={t('home.quickActions.label')}>
+      <section className={styles.actionsSection}>
         <h2 className={styles.sectionTitle}>{t('home.quickActions.title')}</h2>
         <div className={styles.actionsGrid}>
           {QUICK_ACTIONS.map((action) => (
@@ -170,8 +141,7 @@ export default function Home(): JSX.Element {
               variant={action.variant}
               size="lg"
               className={styles.actionButton}
-              onClick={() => handleQuickAction(action.path)}
-              disabled={!isConnected && action.id !== 'buy'}
+              onClick={() => navigate({ to: action.path })}
             >
               <AssetIcon name={action.icon} size={20} />
               <span>{t(action.labelKey)}</span>
@@ -179,19 +149,8 @@ export default function Home(): JSX.Element {
           ))}
         </div>
       </section>
-
-      {isConnected && portfolio && (
-        <section className={styles.marketSection} aria-label={t('home.market.label')}>
-          <h2 className={styles.sectionTitle}>{t('home.market.title')}</h2>
-          <Card className={styles.marketCard} padded>
-            <div className={styles.marketPlaceholder}>
-              <AssetIcon name="chart" size={32} />
-              <p>{t('home.market.comingSoon')}</p>
-            </div>
-          </Card>
-        </section>
-      )}
     </div>
   );
 }
 
+export default Home;
