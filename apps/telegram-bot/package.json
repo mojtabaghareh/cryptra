@@ -1,1 +1,33 @@
-
+{
+  "name": "@cryptra/telegram-bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cryptra Telegram Bot (@Cryptrabot)",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@cryptra/config": "workspace:*",
+    "@cryptra/core": "workspace:*",
+    "@cryptra/database": "workspace:*",
+    "@cryptra/xp": "workspace:*",
+    "@cryptra/levels": "workspace:*",
+    "@cryptra/referral": "workspace:*",
+    "@cryptra/achievements": "workspace:*",
+    "@cryptra/notifications": "workspace:*",
+    "@cryptra/monitoring": "workspace:*",
+    "grammy": "^1.30.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "tsx": "^4.19.1",
+    "rimraf": "^6.0.1",
+    "@types/node": "^22.10.0"
+  }
+}
