@@ -1,0 +1,39 @@
+# Overlay: public HTTPS via Caddy in front of prod stack
+#
+# Prerequisites:
+#   - DNS A/AAAA for $DOMAIN → your server IP
+#   - Ports 80 + 443 open
+#
+# Example:
+#   DOMAIN=app.example.com EMAIL=ops@example.com \
+#     docker compose -f docker-compose.prod.yml -f docker-compose.caddy.yml up -d
+
+services:
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+      EMAIL: ${EMAIL:-admin@localhost}
+    volumes:
+      - ./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - miniapp
+      - api
+
+  # Do not expose miniapp/api publicly when Caddy is the edge
+  miniapp:
+    ports: !reset []
+
+  api:
+    ports: !reset []
+
+volumes:
+  caddy_data:
+  caddy_config:

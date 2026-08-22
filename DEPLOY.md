@@ -9,67 +9,99 @@ cp .env.example .env
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-Mini App: `http://localhost:8080`  
-API: `http://localhost:3000/health`
+- Mini App: `http://localhost:8080`
+- API: `http://localhost:3000/health`
 
-### دیتابیس بعد از بالا آمدن API
-
-روی ماشین میزبان (با `DATABASE_URL` اشاره به localhost:5432 اگر پورت publish شده):
+### دیتابیس
 
 ```bash
-# یا exec داخل کانتینر api:
 docker compose -f docker-compose.prod.yml exec api \
   sh -c 'pnpm db:generate && pnpm db:push && pnpm db:seed'
 ```
 
-اگر پورت postgres در prod compose publish نیست، موقتاً در `docker-compose.prod.yml` اضافه کن:
+اگر پورت postgres publish نیست، موقتاً در compose اضافه کن: `"5432:5432"`.
 
-```yaml
-ports:
-  - "5432:5432"
-```
+---
 
-## تلگرام + HTTPS
+## HTTPS با Caddy (دامنه واقعی)
 
-1. Mini App را پشت HTTPS بگذار (Cloudflare Tunnel / Caddy / Traefik):
+1. DNS: `A` رکورد `app.example.com` → IP سرور
+2. پورت‌های `80` و `443` باز باشند
+3. اجرا:
 
 ```bash
-npx cloudflared tunnel --url http://localhost:8080
+export DOMAIN=app.example.com
+export EMAIL=ops@example.com
+
+docker compose -f docker-compose.prod.yml -f docker-compose.caddy.yml up -d --build
 ```
 
-2. در `.env`:
+Caddy به‌صورت خودکار گواهی Let's Encrypt می‌گیرد.
+
+4. در `.env`:
 
 ```env
-TELEGRAM_MINI_APP_URL=https://xxxx.trycloudflare.com
+TELEGRAM_MINI_APP_URL=https://app.example.com
+CORS_ALLOWED_ORIGINS=https://app.example.com
 ```
 
-3. Bot را ری‌استارت کن یا:
+5. Menu Button:
 
 ```bash
 pnpm setup:menu
 ```
+
+فایل‌ها:
+- `infrastructure/caddy/Caddyfile`
+- `docker-compose.caddy.yml` (overlay روی prod)
+
+---
+
+## بدون دامنه (Cloudflare Tunnel)
+
+```bash
+npx cloudflared tunnel --url http://localhost:8080
+# یا وقتی Caddy محلی نیست: http://localhost:8080
+```
+
+`TELEGRAM_MINI_APP_URL` را روی URL تونل بگذار و bot را ری‌استارت / `pnpm setup:menu`.
+
+---
+
+## CI
+
+| Workflow | کار |
+|----------|-----|
+| `.github/workflows/ci.yml` | install + prisma generate + miniapp build + docker build |
+| `.github/workflows/security.yml` | audit + gitleaks + dependency review |
+| `.github/workflows/deploy.yml` | manual dispatch (هوک SSH — فعال‌سازی با secrets) |
+
+برای deploy خودکار، secrets را ست کن: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` و بخش کامنت‌شده در `deploy.yml` را باز کن.
+
+---
 
 ## متغیرهای حیاتی
 
 | Key | توضیح |
 |-----|--------|
 | `TELEGRAM_BOT_TOKEN` | BotFather |
-| `JWT_SECRET` | حداقل ۳۲ کاراکتر |
+| `JWT_SECRET` | ≥ ۳۲ کاراکتر |
 | `DATABASE_URL` | Postgres |
 | `REDIS_URL` | Redis |
-| `TELEGRAM_MINI_APP_URL` | **https://** فقط |
-| `ONEINCH_API_KEY` | اختیاری برای EVM swap |
-| `ADMIN_API_KEY` | پنل ادمین |
+| `TELEGRAM_MINI_APP_URL` | **فقط https://** |
+| `DOMAIN` / `EMAIL` | برای Caddy |
+| `ONEINCH_API_KEY` | اختیاری EVM |
+| `ADMIN_API_KEY` | ادمین |
 
-## توسعه (بدون Docker اپ‌ها)
+---
+
+## توسعه
 
 ```bash
-docker compose up -d          # فقط pg + redis
+docker compose up -d
 pnpm install
 bash scripts/bootstrap-db.sh
-pnpm dev:api
-pnpm dev:bot
-pnpm dev:miniapp
+pnpm dev:api && pnpm dev:bot && pnpm dev:miniapp
 ```
 
 جزئیات ورود کاربر: [GETTING_STARTED.md](./GETTING_STARTED.md)

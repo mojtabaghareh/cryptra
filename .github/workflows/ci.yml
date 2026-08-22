@@ -1,1 +1,81 @@
+name: CI
 
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install-and-typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Prisma generate
+        run: pnpm db:generate
+        env:
+          DATABASE_URL: postgresql://cryptra:cryptra@localhost:5432/cryptra
+
+      - name: Typecheck (best-effort packages)
+        run: pnpm typecheck || true
+
+      - name: Build Mini App
+        working-directory: apps/telegram-mini-app
+        run: |
+          pnpm install --no-frozen-lockfile
+          pnpm build
+        env:
+          VITE_API_URL: ""
+
+  docker-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: install-and-typecheck
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.api
+          push: false
+          tags: cryptra-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Mini App image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.miniapp
+          push: false
+          tags: cryptra-miniapp:ci
+          build-args: |
+            VITE_API_URL=

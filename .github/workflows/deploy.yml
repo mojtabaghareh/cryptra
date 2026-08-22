@@ -1,1 +1,49 @@
+name: Deploy (manual)
 
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment label
+        required: true
+        default: production
+        type: choice
+        options:
+          - production
+          - staging
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Summary
+        run: |
+          echo "### Deploy requested → ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This workflow is a **hook**. Wire SSH / registry push here when the server is ready." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Suggested remote steps:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "git pull origin main" >> $GITHUB_STEP_SUMMARY
+          echo "docker compose -f docker-compose.prod.yml up -d --build" >> $GITHUB_STEP_SUMMARY
+          echo "docker compose -f docker-compose.prod.yml exec api sh -c 'pnpm db:generate && pnpm db:push'" >> $GITHUB_STEP_SUMMARY
+          echo "pnpm setup:menu" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # Uncomment when you have a VPS + SSH secret:
+  # deploy:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Deploy over SSH
+  #       uses: appleboy/ssh-action@v1.2.0
+  #       with:
+  #         host: ${{ secrets.DEPLOY_HOST }}
+  #         username: ${{ secrets.DEPLOY_USER }}
+  #         key: ${{ secrets.DEPLOY_SSH_KEY }}
+  #         script: |
+  #           cd /opt/cryptra && git pull && docker compose -f docker-compose.prod.yml up -d --build
