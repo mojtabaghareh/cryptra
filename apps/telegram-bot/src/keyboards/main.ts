@@ -8,7 +8,9 @@ export function mainReplyKeyboard() {
     .text('🔗 Referral')
     .text('📊 Markets')
     .row()
+    .text('🏆 Leaderboard')
     .text('🎁 Rewards')
+    .row()
     .text('ℹ️ Help')
     .resized()
     .persistent();
@@ -18,8 +20,11 @@ export function openAppKeyboard(miniAppUrl?: string) {
   const kb = new InlineKeyboard();
   if (miniAppUrl) {
     kb.webApp('🚀 Open Cryptra', miniAppUrl);
+  } else {
+    kb.text('⚠️ Set TELEGRAM_MINI_APP_URL', 'home');
   }
   kb.row().text('👤 Profile', 'profile').text('🔗 Referral', 'referral');
+  kb.row().text('🏆 Leaderboard', 'leaderboard');
   return kb;
 }
 

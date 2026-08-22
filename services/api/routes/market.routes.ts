@@ -3,41 +3,39 @@ import { z } from 'zod';
 import { marketDataService } from '@cryptra/market-data';
 import { AppError, ErrorCodes } from '@cryptra/core';
 
+const DEFAULT_IDS = 'bitcoin,ethereum,solana,toncoin,binancecoin,ripple';
+
 export async function marketRoutes(app: FastifyInstance) {
   /**
-   * GET /api/v1/market/prices?ids=bitcoin,ethereum,solana
+   * GET /api/v1/market/prices?ids=bitcoin,ethereum
+   * ids optional — defaults to major assets
    */
   app.get('/prices', async (request) => {
     const query = z
       .object({
-        ids: z.string().min(1),
+        ids: z.string().min(1).optional(),
       })
       .safeParse(request.query);
 
     if (!query.success) {
       throw new AppError({
         code: ErrorCodes.VALIDATION_FAILED,
-        message: 'Query param "ids" is required (comma-separated)',
+        message: 'Invalid query',
       });
     }
 
-    const ids = query.data.ids.split(',').map((s) => s.trim()).filter(Boolean);
+    const raw = query.data.ids || DEFAULT_IDS;
+    const ids = raw.split(',').map((s) => s.trim()).filter(Boolean);
     const prices = await marketDataService.getPrices(ids);
 
     return { success: true, data: prices };
   });
 
-  /**
-   * GET /api/v1/market/major
-   */
   app.get('/major', async () => {
     const prices = await marketDataService.getMajorPrices();
     return { success: true, data: prices };
   });
 
-  /**
-   * GET /api/v1/market/search?q=sol
-   */
   app.get('/search', async (request) => {
     const query = z
       .object({

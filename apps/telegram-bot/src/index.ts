@@ -33,7 +33,7 @@ async function main() {
   bot.hears('ℹ️ Help', handleHelp);
   bot.hears('🏆 Leaderboard', handleLeaderboard);
   bot.hears('🎁 Rewards', async (ctx) => {
-    await ctx.reply('🎁 Rewards are available inside the Mini App. Use /start to open it.');
+    await ctx.reply('🎁 Rewards are inside the Mini App. Tap Open Cryptra after /start.');
   });
 
   bot.callbackQuery('home', async (ctx) => {
@@ -47,6 +47,10 @@ async function main() {
   bot.callbackQuery('referral', async (ctx) => {
     await ctx.answerCallbackQuery();
     await handleReferral(ctx);
+  });
+  bot.callbackQuery('leaderboard', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await handleLeaderboard(ctx);
   });
   bot.callbackQuery('rewards', async (ctx) => {
     await ctx.answerCallbackQuery();
@@ -65,6 +69,27 @@ async function main() {
     { command: 'leaderboard', description: 'XP rankings' },
     { command: 'help', description: 'Help & about' },
   ]);
+
+  // Auto-configure menu button when HTTPS mini app URL is set
+  const miniUrl = config.TELEGRAM_MINI_APP_URL;
+  if (miniUrl && miniUrl.startsWith('https://')) {
+    try {
+      await bot.api.setChatMenuButton({
+        menu_button: {
+          type: 'web_app',
+          text: 'Open Cryptra',
+          web_app: { url: miniUrl },
+        },
+      });
+      console.log('📌 Menu button →', miniUrl);
+    } catch (e) {
+      console.warn('Could not set menu button:', e);
+    }
+  } else {
+    console.warn(
+      '⚠️ TELEGRAM_MINI_APP_URL missing or not https — Mini App button will not open inside Telegram',
+    );
+  }
 
   console.log('🤖 Cryptrabot starting...');
   await bot.start({
