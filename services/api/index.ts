@@ -11,6 +11,7 @@ import {
   runHealthChecks,
   alertError,
 } from '@cryptra/monitoring';
+import { registerInfrastructureHealthChecks } from './health/register';
 import { registerRateLimit } from './middleware/rateLimit';
 import { registerErrorHandler } from './middleware/errorHandler';
 import { userRoutes } from './routes/user.routes';
@@ -27,6 +28,8 @@ import { ordersRoutes } from './routes/orders.routes';
 import { rewardsRoutes } from './routes/rewards.routes';
 import { adminRoutes } from './routes/admin.routes';
 import { notificationsRoutes } from './routes/notifications.routes';
+
+registerInfrastructureHealthChecks();
 
 async function buildServer() {
   const app = Fastify({
