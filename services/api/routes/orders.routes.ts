@@ -6,7 +6,7 @@ import { AppError, ErrorCodes } from '@cryptra/core';
 import { xpEngine } from '@cryptra/xp';
 import { achievementService } from '@cryptra/achievements';
 import { referralService } from '@cryptra/referral';
-import { hyperliquidClient } from '@cryptra/hyperliquid';
+import { hyperliquidClient, placeMarketOrder, isAgentConfigured } from '@cryptra/hyperliquid';
 
 const placeOrderSchema = z.object({
   protocol: z.string().default('hyperliquid'),
@@ -64,17 +64,36 @@ export async function ordersRoutes(app: FastifyInstance) {
     const userId = request.user!.userId;
 
     let fillPrice = data.price;
-    let hlMeta: { source: string; mid: number } | null = null;
+    let hlMeta: { source: string; mid?: number; agent?: string } | null = null;
+    let agentResult: Awaited<ReturnType<typeof placeMarketOrder>> | null = null;
 
     if (data.protocol === 'hyperliquid' && data.type === 'MARKET') {
       try {
-        const mid = await hyperliquidClient.getMid(data.symbol.toUpperCase());
-        if (mid != null) {
-          fillPrice = String(mid);
-          hlMeta = { source: 'hyperliquid_mid', mid };
+        agentResult = await placeMarketOrder({
+          symbol: data.symbol,
+          isBuy: data.side === 'LONG',
+          size: data.size,
+          leverage: data.leverage,
+        });
+        if (agentResult.mid != null) {
+          fillPrice = String(agentResult.mid);
         }
+        hlMeta = {
+          source: agentResult.mode,
+          mid: agentResult.mid,
+          agent: isAgentConfigured() ? 'configured' : 'off',
+        };
       } catch (err) {
-        console.warn('[orders] HL mid fetch failed, continuing without', err);
+        console.warn('[orders] HL path failed, continuing without', err);
+        try {
+          const mid = await hyperliquidClient.getMid(data.symbol.toUpperCase());
+          if (mid != null) {
+            fillPrice = String(mid);
+            hlMeta = { source: 'hyperliquid_mid', mid };
+          }
+        } catch {
+          /* ignore */
+        }
       }
     }
 
@@ -125,7 +144,7 @@ export async function ordersRoutes(app: FastifyInstance) {
         source: 'TRADE',
         amount: 40,
         description: `${data.side} ${data.symbol}`,
-        metadata: { orderId: order.id, fillPrice },
+        metadata: { orderId: order.id, fillPrice, hlMode: agentResult?.mode },
       });
       await achievementService.tryUnlock(userId, 'FIRST_TRADE');
       await referralService.activate(userId);
@@ -139,9 +158,17 @@ export async function ordersRoutes(app: FastifyInstance) {
         order: { ...order, avgFillPrice: fillPrice },
         position,
         market: hlMeta,
+        agent: agentResult
+          ? {
+              mode: agentResult.mode,
+              executed: agentResult.executed,
+              message: agentResult.message,
+            }
+          : null,
         note:
           data.protocol === 'hyperliquid'
-            ? 'Filled at HL mid for tracking. Live exchange execution requires agent wallet signing (not enabled on server).'
+            ? agentResult?.message ??
+              'Filled at HL mid for tracking.'
             : undefined,
       },
     };

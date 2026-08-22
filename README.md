@@ -1,63 +1,45 @@
 # Cryptra
 
 > **Financial Intelligence Layer**  
-> ما به کاربر کمک نمی‌کنیم ترید کند.  
-> ما به کاربر کمک می‌کنیم بفهمد چطور تصمیم می‌گیرد.
+> We don’t help users trade. We help users understand how they decide.
 
-**Stack:** Telegram Mini App + Bot · Fastify API · Prisma · Redis · Jupiter / 1inch / Hyperliquid
+**Stack:** Telegram Mini App + Bot · Fastify · Prisma · Redis · Jupiter / 1inch / Hyperliquid
 
 ---
 
-## شروع سریع
+## Launch (production)
+
+راهنمای کامل از دامنه تا Menu Button و smoke test:
+
+→ **[LAUNCH.md](./LAUNCH.md)**
 
 ```bash
-git clone https://github.com/mojtabaghareh/cryptra.git
-cd cryptra
-cp .env.example .env
-# TELEGRAM_BOT_TOKEN + JWT_SECRET را پر کنید
-
-docker compose up -d          # Postgres + Redis
-pnpm install
-bash scripts/bootstrap-db.sh
-
-pnpm dev:api      # :3000
-pnpm dev:bot
-pnpm dev:miniapp  # :5173
+cp .env.example .env          # secrets واقعی
+pnpm launch:check            # قبل از go-live
+docker compose -f docker-compose.prod.yml -f docker-compose.caddy.yml up -d --build
+pnpm setup:menu
+API_URL=https://app.yourdomain.com pnpm smoke
 ```
 
-ورود کاربر و Menu Button: **[GETTING_STARTED.md](./GETTING_STARTED.md)**  
-Deploy پروداکشن: **[DEPLOY.md](./DEPLOY.md)**
+Deploy جزئیات: [DEPLOY.md](./DEPLOY.md) · شروع توسعه: [GETTING_STARTED.md](./GETTING_STARTED.md)
+
+---
+
+## Dev
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose up -d
+pnpm install && bash scripts/bootstrap-db.sh
+pnpm dev:api && pnpm dev:bot && pnpm dev:miniapp
 ```
 
 ---
 
-## قابلیت‌های فعلی
+## قابلیت‌ها
 
-- Auth تلگرام (initData → JWT)
-- Wallet: MetaMask / Phantom / TON + موجودی on-chain
-- Swap: Quote → Build → Sign & send → Execute (Jupiter / 1inch)
-- Perps: ثبت با mid واقعی Hyperliquid
-- XP / Level / Referral / Achievements / Reflection / Leaderboard
-- Bot: `/start` + Menu Button Mini App
-
----
-
-## ساختار
-
-```
-apps/telegram-mini-app   Mini App (Vite + React)
-apps/telegram-bot        Grammy bot
-services/api             Fastify /api/v1
-packages/*               domain packages
-docker-compose.yml       dev infra
-docker-compose.prod.yml  full stack
-```
-
----
-
-## ماموریت
-
-*We don’t help users trade. We help users understand how they decide.*
+- Auth تلگرام (initData → JWT) + production secret guard
+- Wallet MetaMask / Phantom / TON + balances
+- Swap: Quote → Build → Sign & send → Execute
+- Perps: HL mid tracking (+ optional agent env)
+- XP / Referral / Achievements / Reflection / Leaderboard
+- `/health` · `/status` · `pnpm smoke` · Telegram alerts

@@ -18,7 +18,8 @@
     "dev:workers": "pnpm --filter @cryptra/workers dev",
     "dev:miniapp": "pnpm --filter @cryptra/telegram-mini-app dev",
     "setup:menu": "node scripts/set-menu-button.mjs",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "launch:check": "node scripts/launch-check.mjs"
   },
   "devDependencies": {
     "turbo": "^2.3.0",

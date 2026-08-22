@@ -12,6 +12,7 @@ import {
 } from '@cryptra/monitoring';
 import { registerInfrastructureHealthChecks } from './health/register';
 import { startHealthWatchdog } from './health/watchdog';
+import { assertProductionSecurity } from './security/assertProduction';
 import { registerRateLimit } from './middleware/rateLimit';
 import { registerErrorHandler } from './middleware/errorHandler';
 import { userRoutes } from './routes/user.routes';
@@ -29,11 +30,17 @@ import { rewardsRoutes } from './routes/rewards.routes';
 import { adminRoutes } from './routes/admin.routes';
 import { notificationsRoutes } from './routes/notifications.routes';
 
+assertProductionSecurity();
 registerInfrastructureHealthChecks();
 
 function resolveCorsOrigin(): boolean | string[] {
   const raw = (process.env.CORS_ALLOWED_ORIGINS ?? '').trim();
-  if (!raw || raw === '*') return true;
+  if (!raw || raw === '*') {
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('[cors] CORS_ALLOWED_ORIGINS empty in production — allowing all (set explicit origin)');
+    }
+    return true;
+  }
   return raw.split(',').map((s) => s.trim()).filter(Boolean);
 }
 
@@ -100,8 +107,7 @@ async function buildServer() {
 
   app.get('/health', async (_request, reply) => {
     const report = await runHealthChecks();
-    const code =
-      report.status === 'unhealthy' ? 503 : report.status === 'degraded' ? 200 : 200;
+    const code = report.status === 'unhealthy' ? 503 : 200;
     return reply.code(code).send(report);
   });
 
