@@ -10,6 +10,7 @@ import { GlobalActivity } from '../pages/GlobalActivity/GlobalActivity';
 import { Referral } from '../pages/Referral/Referral';
 import { Rewards } from '../pages/Rewards/Rewards';
 import { Reflection } from '../pages/Reflection/Reflection';
+import { Status } from '../pages/Status/Status';
 
 const rootRoute = createRootRoute({
   component: App,
@@ -75,6 +76,12 @@ const reflectionRoute = createRoute({
   component: Reflection,
 });
 
+const statusRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/status',
+  component: Status,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   marketsRoute,
@@ -86,6 +93,7 @@ const routeTree = rootRoute.addChildren([
   referralRoute,
   rewardsRoute,
   reflectionRoute,
+  statusRoute,
 ]);
 
 export const router = createRouter({ routeTree });

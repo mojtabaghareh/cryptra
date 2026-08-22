@@ -17,7 +17,8 @@
     "dev:bot": "pnpm --filter @cryptra/telegram-bot dev",
     "dev:workers": "pnpm --filter @cryptra/workers dev",
     "dev:miniapp": "pnpm --filter @cryptra/telegram-mini-app dev",
-    "setup:menu": "node scripts/set-menu-button.mjs"
+    "setup:menu": "node scripts/set-menu-button.mjs",
+    "smoke": "node scripts/smoke.mjs"
   },
   "devDependencies": {
     "turbo": "^2.3.0",
