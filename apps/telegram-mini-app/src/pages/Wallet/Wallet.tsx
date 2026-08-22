@@ -3,6 +3,7 @@ import { Card, Button, Badge, Skeleton } from '../../lib/ui';
 import { useWalletStore } from '../../store/walletStore';
 import { useSessionStore } from '../../store/sessionStore';
 import { apiGet, apiPost } from '../../lib/api';
+import { buildLinkMessage, isMetaMaskAvailable, personalSign } from '../../lib/ethereum';
 
 interface SwapRow {
   id: string;
@@ -36,7 +37,9 @@ export function Wallet() {
   const isConnected = useWalletStore((s) => s.isConnected);
   const address = useWalletStore((s) => s.address);
   const provider = useWalletStore((s) => s.provider);
-  const connect = useWalletStore((s) => s.connect);
+  const chainId = useWalletStore((s) => s.chainId);
+  const connectMetaMask = useWalletStore((s) => s.connectMetaMask);
+  const connectDemo = useWalletStore((s) => s.connectDemo);
   const disconnect = useWalletStore((s) => s.disconnect);
   const token = useSessionStore((s) => s.token);
 
@@ -48,6 +51,11 @@ export function Wallet() {
   const [tab, setTab] = useState<'wallet' | 'activity'>('wallet');
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hasInjected, setHasInjected] = useState(false);
+
+  useEffect(() => {
+    setHasInjected(isMetaMaskAvailable());
+  }, []);
 
   async function loadActivity() {
     if (!token) return;
@@ -74,33 +82,50 @@ export function Wallet() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  async function handleConnectAndLink() {
-    setError(null);
-    setMessage(null);
-    await connect();
-  }
-
   async function linkToAccount() {
     const addr = useWalletStore.getState().address;
+    const prov = useWalletStore.getState().provider;
     if (!token || !addr) {
-      setError('Need Telegram session + local wallet connect');
+      setError('Need Telegram session + connected wallet');
       return;
     }
+
     setLinking(true);
     setError(null);
+    setMessage(null);
+
     try {
-      const res = await apiPost<{ success: boolean; data: LinkedWallet; linked: boolean }>(
-        '/api/v1/wallets/connect',
-        {
-          address: addr,
-          chainType: 'EVM',
-          provider: 'demo',
-          skipSignature: true,
-          label: 'Demo wallet',
-        },
-        token,
-      );
-      setMessage(res.linked ? 'Wallet linked to your account' : 'Wallet already linked');
+      if (prov === 'metamask') {
+        const msg = buildLinkMessage(addr);
+        const signature = await personalSign(addr, msg);
+        const res = await apiPost<{ success: boolean; linked: boolean }>(
+          '/api/v1/wallets/connect',
+          {
+            address: addr,
+            chainType: 'EVM',
+            provider: 'metamask',
+            message: msg,
+            signature,
+            label: 'MetaMask',
+          },
+          token,
+        );
+        setMessage(res.linked ? 'MetaMask linked with signature ✓' : 'Already linked');
+      } else {
+        // Demo path (dev only on API)
+        const res = await apiPost<{ success: boolean; linked: boolean }>(
+          '/api/v1/wallets/connect',
+          {
+            address: addr,
+            chainType: 'EVM',
+            provider: 'demo',
+            skipSignature: true,
+            label: 'Demo wallet',
+          },
+          token,
+        );
+        setMessage(res.linked ? 'Demo wallet linked' : 'Already linked');
+      }
       await loadActivity();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Link failed');
@@ -134,23 +159,50 @@ export function Wallet() {
         <>
           {!isConnected ? (
             <Card padded>
-              <p style={{ marginBottom: 12, color: 'rgba(255,255,255,0.7)' }}>
-                Connect a demo wallet, then link it to your Telegram account.
+              <p style={{ marginBottom: 12, color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>
+                Connect MetaMask (recommended) or use a demo wallet for testing.
               </p>
-              <Button fullWidth onClick={() => void handleConnectAndLink()}>
-                Connect wallet (demo)
-              </Button>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <Button
+                  fullWidth
+                  disabled={!hasInjected}
+                  onClick={() => {
+                    setError(null);
+                    void connectMetaMask().catch((e) =>
+                      setError(e instanceof Error ? e.message : 'MetaMask failed'),
+                    );
+                  }}
+                >
+                  {hasInjected ? 'Connect MetaMask' : 'MetaMask not detected'}
+                </Button>
+                <Button
+                  fullWidth
+                  variant="secondary"
+                  onClick={() => {
+                    setError(null);
+                    void connectDemo();
+                  }}
+                >
+                  Connect demo wallet
+                </Button>
+              </div>
+              {!hasInjected && (
+                <p style={{ marginTop: 10, fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
+                  In Telegram, open from a wallet in-app browser or use demo mode.
+                </p>
+              )}
             </Card>
           ) : (
             <Card padded>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Local session</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Connected</div>
                   <code style={{ fontSize: 13 }}>
                     {address?.slice(0, 8)}…{address?.slice(-6)}
                   </code>
-                  <div style={{ marginTop: 6 }}>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
                     <Badge variant="success">{provider ?? 'wallet'}</Badge>
+                    {chainId != null && <Badge variant="neutral">chain {chainId}</Badge>}
                   </div>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => disconnect()}>
@@ -160,9 +212,18 @@ export function Wallet() {
               {token && (
                 <div style={{ marginTop: 12 }}>
                   <Button fullWidth disabled={linking} onClick={() => void linkToAccount()}>
-                    {linking ? 'Linking…' : 'Link to Cryptra account'}
+                    {linking
+                      ? 'Signing…'
+                      : provider === 'metamask'
+                        ? 'Sign & link to account'
+                        : 'Link demo to account'}
                   </Button>
                 </div>
+              )}
+              {!token && (
+                <p style={{ marginTop: 10, fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
+                  Open Mini App from Telegram to link wallet to your account.
+                </p>
               )}
             </Card>
           )}
@@ -215,9 +276,7 @@ export function Wallet() {
           {swaps.slice(0, 15).map((s) => (
             <Card key={s.id} padded>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 13 }}>
-                  Swap · {s.protocol ?? 'DEX'}
-                </span>
+                <span style={{ fontSize: 13 }}>Swap · {s.protocol ?? 'DEX'}</span>
                 <Badge variant={s.status === 'SUBMITTED' ? 'success' : 'neutral'}>{s.status}</Badge>
               </div>
             </Card>
