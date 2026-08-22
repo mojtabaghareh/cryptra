@@ -6,6 +6,7 @@ import { AppError, ErrorCodes } from '@cryptra/core';
 import { xpEngine } from '@cryptra/xp';
 import { achievementService } from '@cryptra/achievements';
 import { referralService } from '@cryptra/referral';
+import { hyperliquidClient } from '@cryptra/hyperliquid';
 
 const placeOrderSchema = z.object({
   protocol: z.string().default('hyperliquid'),
@@ -20,6 +21,19 @@ const placeOrderSchema = z.object({
 
 export async function ordersRoutes(app: FastifyInstance) {
   app.addHook('preHandler', requireAuth);
+
+  /** Public-ish mids for UI (still behind auth for rate-limit consistency) */
+  app.get('/markets', async () => {
+    try {
+      const majors = await hyperliquidClient.getMajorPerps();
+      return { success: true, data: majors };
+    } catch (e) {
+      throw new AppError({
+        code: ErrorCodes.EXTERNAL_SERVICE_ERROR,
+        message: e instanceof Error ? e.message : 'Hyperliquid unavailable',
+      });
+    }
+  });
 
   app.get('/', async (request) => {
     const orders = await prisma.order.findMany({
@@ -50,18 +64,35 @@ export async function ordersRoutes(app: FastifyInstance) {
     const data = body.data;
     const userId = request.user!.userId;
 
+    // Enrich market orders with live Hyperliquid mid when possible
+    let fillPrice = data.price;
+    let hlMeta: Record<string, unknown> | undefined;
+
+    if (data.protocol === 'hyperliquid' && data.type === 'MARKET') {
+      try {
+        const mid = await hyperliquidClient.getMid(data.symbol.toUpperCase());
+        if (mid != null) {
+          fillPrice = String(mid);
+          hlMeta = { source: 'hyperliquid_mid', mid };
+        }
+      } catch (err) {
+        console.warn('[orders] HL mid fetch failed, continuing without', err);
+      }
+    }
+
     const order = await prisma.order.create({
       data: {
         userId,
         protocol: data.protocol,
-        symbol: data.symbol,
+        symbol: data.symbol.toUpperCase(),
         side: data.side,
         type: data.type,
         size: data.size,
-        price: data.price,
+        price: fillPrice ?? data.price,
         stopPrice: data.stopPrice,
         leverage: data.leverage,
         status: 'OPEN',
+        metadata: hlMeta,
       },
     });
 
@@ -72,10 +103,10 @@ export async function ordersRoutes(app: FastifyInstance) {
           userId,
           orderId: order.id,
           protocol: data.protocol,
-          symbol: data.symbol,
+          symbol: data.symbol.toUpperCase(),
           side: data.side,
           size: data.size,
-          entryPrice: data.price ?? '0',
+          entryPrice: fillPrice ?? data.price ?? '0',
           leverage: data.leverage,
           status: 'OPEN',
         },
@@ -86,19 +117,18 @@ export async function ordersRoutes(app: FastifyInstance) {
         data: {
           status: 'FILLED',
           filledSize: data.size,
-          avgFillPrice: data.price ?? '0',
+          avgFillPrice: fillPrice ?? data.price ?? '0',
         },
       });
     }
 
-    // Side effects: XP, achievements, referral activation
     try {
       await xpEngine.award({
         userId,
         source: 'TRADE',
         amount: 40,
         description: `${data.side} ${data.symbol}`,
-        metadata: { orderId: order.id },
+        metadata: { orderId: order.id, fillPrice },
       });
       await achievementService.tryUnlock(userId, 'FIRST_TRADE');
       await referralService.activate(userId);
@@ -106,6 +136,17 @@ export async function ordersRoutes(app: FastifyInstance) {
       console.error('[orders] post-trade side effects failed', err);
     }
 
-    return { success: true, data: { order, position } };
+    return {
+      success: true,
+      data: {
+        order: { ...order, avgFillPrice: fillPrice },
+        position,
+        market: hlMeta ?? null,
+        note:
+          data.protocol === 'hyperliquid'
+            ? 'Filled at HL mid for tracking. Live exchange execution requires agent wallet signing (not enabled on server).'
+            : undefined,
+      },
+    };
   });
 }

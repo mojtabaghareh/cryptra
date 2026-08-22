@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Card, Button, Badge } from '../../lib/ui';
 import { useWalletStore } from '../../store/walletStore';
 import { useSessionStore } from '../../store/sessionStore';
@@ -7,6 +7,7 @@ import {
   buildSwapTx,
   executeSwap,
   placeOrder,
+  apiGet,
   type SwapQuoteResult,
 } from '../../lib/api';
 import { signAndSendJupiterSwap } from '../../lib/solana';
@@ -34,6 +35,8 @@ const PAIRS = [
     unit: 'ETH',
   },
 ] as const;
+
+const PERP_SYMBOLS = ['BTC', 'ETH', 'SOL'] as const;
 
 const inputStyle: CSSProperties = {
   width: '100%',
@@ -66,10 +69,34 @@ export function Trade() {
   const [error, setError] = useState<string | null>(null);
 
   const [perpSide, setPerpSide] = useState<'LONG' | 'SHORT'>('LONG');
+  const [perpSymbol, setPerpSymbol] = useState<(typeof PERP_SYMBOLS)[number]>('BTC');
   const [perpSize, setPerpSize] = useState('');
   const [leverage, setLeverage] = useState(5);
+  const [hlMids, setHlMids] = useState<Record<string, number>>({});
 
   const pair = PAIRS.find((p) => p.id === pairId)!;
+
+  useEffect(() => {
+    if (!token || tab !== 'perp') return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiGet<{ success: boolean; data: Array<{ symbol: string; mid: number }> }>(
+          '/api/v1/orders/markets',
+          token,
+        );
+        if (cancelled || !res.data) return;
+        const map: Record<string, number> = {};
+        for (const row of res.data) map[row.symbol] = row.mid;
+        setHlMids(map);
+      } catch {
+        // non-blocking
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, tab]);
 
   async function handleQuote() {
     setError(null);
@@ -112,7 +139,7 @@ export function Trade() {
   async function handleBuild() {
     if (!token || !quote) return;
     if (!walletAddress) {
-      setError('Connect a wallet address first (Phantom for Solana / MetaMask for EVM)');
+      setError('Connect a wallet address first');
       return;
     }
     setLoading(true);
@@ -123,7 +150,7 @@ export function Trade() {
         userAddress: walletAddress,
       });
       setBuiltTx(res.data.transaction);
-      setMessage(`Transaction built (${res.data.protocol}). You can Sign & send or paste hash.`);
+      setMessage(`Transaction built (${res.data.protocol}).`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Build failed');
     } finally {
@@ -159,7 +186,7 @@ export function Trade() {
       }
 
       setTxHash(hash);
-      setMessage(`Broadcast ✓ ${hash.slice(0, 16)}… — now Execute to record on Cryptra`);
+      setMessage(`Broadcast ✓ ${hash.slice(0, 16)}…`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Sign/send failed');
     } finally {
@@ -205,13 +232,22 @@ export function Trade() {
     try {
       const res = await placeOrder(token, {
         protocol: 'hyperliquid',
-        symbol: 'BTC',
+        symbol: perpSymbol,
         side: perpSide,
         type: 'MARKET',
         size: perpSize,
         leverage,
       });
-      setMessage(`Order placed · ${JSON.stringify(res.data).slice(0, 120)}…`);
+      const data = res.data as {
+        order?: { avgFillPrice?: string };
+        market?: { mid?: number };
+        note?: string;
+      };
+      const px = data.market?.mid ?? data.order?.avgFillPrice;
+      setMessage(
+        `${perpSide} ${perpSymbol} · size ${perpSize} · fill ~${px ?? '?'}` +
+          (data.note ? ` · ${data.note.slice(0, 60)}…` : ''),
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Order failed');
     } finally {
@@ -223,7 +259,7 @@ export function Trade() {
     <div style={{ padding: 16 }}>
       <h1 style={{ fontSize: 22, fontWeight: 700 }}>Trade</h1>
       <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 16 }}>
-        Quote → Build → Sign & send → Execute
+        Swap on-chain · Perps (Hyperliquid mids)
       </p>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
@@ -318,30 +354,24 @@ export function Trade() {
               <div>
                 Fee: {quote.feePercent}% (~{quote.feeAmount})
               </div>
-              {quote.priceImpactBps != null && (
-                <div>Impact: {(quote.priceImpactBps / 100).toFixed(2)}%</div>
-              )}
 
               <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
                 <Button fullWidth variant="secondary" disabled={loading} onClick={() => void handleBuild()}>
-                  {loading ? 'Building…' : '2. Build transaction'}
+                  2. Build transaction
                 </Button>
-
                 {builtTx != null && (
                   <Button fullWidth variant="primary" disabled={loading} onClick={() => void handleSignAndSend()}>
-                    {loading ? 'Waiting wallet…' : '3. Sign & send in wallet'}
+                    3. Sign & send in wallet
                   </Button>
                 )}
-
                 <input
                   value={txHash}
                   onChange={(e) => setTxHash(e.target.value)}
-                  placeholder="tx hash (auto-filled after sign)"
+                  placeholder="tx hash"
                   style={{ ...inputStyle, fontSize: 13, marginBottom: 0 }}
                 />
-
                 <Button fullWidth variant="outline" disabled={loading} onClick={() => void handleExecute()}>
-                  {loading ? 'Submitting…' : '4. Record on Cryptra (Execute)'}
+                  4. Record on Cryptra
                 </Button>
               </div>
             </div>
@@ -349,6 +379,20 @@ export function Trade() {
         </Card>
       ) : (
         <Card padded>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            {PERP_SYMBOLS.map((s) => (
+              <Button
+                key={s}
+                size="sm"
+                variant={perpSymbol === s ? 'primary' : 'secondary'}
+                onClick={() => setPerpSymbol(s)}
+              >
+                {s}
+                {hlMids[s] != null ? ` $${hlMids[s].toLocaleString()}` : ''}
+              </Button>
+            ))}
+          </div>
+
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             <Button
               variant={perpSide === 'LONG' ? 'primary' : 'outline'}
@@ -366,7 +410,7 @@ export function Trade() {
             </Button>
           </div>
 
-          <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Size (BTC)</label>
+          <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Size</label>
           <input
             value={perpSize}
             onChange={(e) => setPerpSize(e.target.value)}
@@ -384,9 +428,19 @@ export function Trade() {
             style={{ width: '100%', marginBottom: 12 }}
           />
 
+          {hlMids[perpSymbol] != null && (
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>
+              HL mid: ${hlMids[perpSymbol].toLocaleString()}
+            </p>
+          )}
+
           <Button fullWidth disabled={loading || !perpSize} onClick={() => void handlePerp()}>
-            {loading ? 'Submitting…' : `Open ${perpSide}`}
+            {loading ? 'Submitting…' : `Open ${perpSide} ${perpSymbol}`}
           </Button>
+
+          <p style={{ marginTop: 10, fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
+            Positions tracked at Hyperliquid mid. On-exchange agent signing is a separate step.
+          </p>
         </Card>
       )}
 

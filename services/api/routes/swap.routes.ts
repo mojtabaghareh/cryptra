@@ -40,10 +40,6 @@ export async function swapRoutes(app: FastifyInstance) {
     return { success: true, data: quote };
   });
 
-  /**
-   * POST /api/v1/swaps/build
-   * Build a signable transaction from a quoted swap (Jupiter / 1inch).
-   */
   app.post('/build', async (request) => {
     const body = z
       .object({
@@ -74,25 +70,32 @@ export async function swapRoutes(app: FastifyInstance) {
       });
     }
 
-    const protocol = swap.protocol ?? 'jupiter';
-    const adapter =
-      protocol === 'jupiter'
-        ? jupiterAdapter
-        : protocol === '1inch' || protocol === 'oneinch'
-          ? oneInchAdapter
-          : null;
+    const protocol = (swap.protocol ?? 'jupiter').toLowerCase();
 
-    if (!adapter?.buildTransaction) {
+    let built: unknown;
+
+    if (protocol === 'jupiter') {
+      built = await jupiterAdapter.buildTransaction!({
+        quote: swap.route,
+        userAddress: body.data.userAddress,
+      });
+    } else if (protocol === '1inch' || protocol === 'oneinch') {
+      // 1inch needs full swap params, not just stored quote
+      built = await oneInchAdapter.buildTransaction!({
+        quote: swap.route,
+        userAddress: body.data.userAddress,
+        fromToken: swap.fromToken,
+        toToken: swap.toToken,
+        fromAmount: swap.fromAmount,
+        fromChain: swap.fromChain,
+        slippageBps: swap.slippageBps ?? 50,
+      } as any);
+    } else {
       throw new AppError({
         code: ErrorCodes.SWAP_QUOTE_FAILED,
         message: `Adapter ${protocol} does not support buildTransaction`,
       });
     }
-
-    const built = await adapter.buildTransaction({
-      quote: swap.route,
-      userAddress: body.data.userAddress,
-    });
 
     return {
       success: true,
