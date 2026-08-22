@@ -22,7 +22,6 @@ const placeOrderSchema = z.object({
 export async function ordersRoutes(app: FastifyInstance) {
   app.addHook('preHandler', requireAuth);
 
-  /** Public-ish mids for UI (still behind auth for rate-limit consistency) */
   app.get('/markets', async () => {
     try {
       const majors = await hyperliquidClient.getMajorPerps();
@@ -64,9 +63,8 @@ export async function ordersRoutes(app: FastifyInstance) {
     const data = body.data;
     const userId = request.user!.userId;
 
-    // Enrich market orders with live Hyperliquid mid when possible
     let fillPrice = data.price;
-    let hlMeta: Record<string, unknown> | undefined;
+    let hlMeta: { source: string; mid: number } | null = null;
 
     if (data.protocol === 'hyperliquid' && data.type === 'MARKET') {
       try {
@@ -92,7 +90,6 @@ export async function ordersRoutes(app: FastifyInstance) {
         stopPrice: data.stopPrice,
         leverage: data.leverage,
         status: 'OPEN',
-        metadata: hlMeta,
       },
     });
 
@@ -141,7 +138,7 @@ export async function ordersRoutes(app: FastifyInstance) {
       data: {
         order: { ...order, avgFillPrice: fillPrice },
         position,
-        market: hlMeta ?? null,
+        market: hlMeta,
         note:
           data.protocol === 'hyperliquid'
             ? 'Filled at HL mid for tracking. Live exchange execution requires agent wallet signing (not enabled on server).'
