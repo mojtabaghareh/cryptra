@@ -125,6 +125,14 @@ export function Profile() {
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>XP · Trading · Referral</div>
           </Card>
         </Link>
+        <Link to="/status">
+          <Card padded>
+            <div style={{ fontWeight: 600 }}>System status</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
+              Postgres · Redis · API health
+            </div>
+          </Card>
+        </Link>
       </div>
 
       <h2 style={{ fontSize: 14, marginTop: 24, marginBottom: 8, color: 'rgba(255,255,255,0.5)' }}>

@@ -165,9 +165,12 @@ export function Home(): JSX.Element {
         </div>
       </section>
 
-      <section style={{ marginTop: 16 }}>
+      <section style={{ marginTop: 16, display: 'grid', gap: 8 }}>
         <Button fullWidth variant="outline" onClick={() => navigate({ to: '/reflection' })}>
           Weekly Reflection
+        </Button>
+        <Button fullWidth variant="ghost" onClick={() => navigate({ to: '/status' })}>
+          System status
         </Button>
       </section>
     </div>
