@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { connectMetaMask, isMetaMaskAvailable } from '../lib/ethereum';
+import { connectMetaMask as requestMetaMask, isMetaMaskAvailable } from '../lib/ethereum';
 
 interface WalletState {
   isConnected: boolean;
@@ -18,7 +18,6 @@ interface WalletActions {
   setProvider: (provider: string | null) => void;
   setBalance: (token: string, balance: number) => void;
   incrementNonce: () => void;
-  /** Prefer MetaMask; falls back to demo if unavailable */
   connect: () => Promise<void>;
   connectMetaMask: () => Promise<void>;
   connectDemo: () => Promise<void>;
@@ -34,6 +33,18 @@ const initialState: WalletState = {
   balance: {},
   nonce: 0,
 };
+
+function setDemo(set: (partial: Partial<WalletState>) => void) {
+  const demo =
+    '0x' +
+    Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+  set({
+    isConnected: true,
+    address: demo,
+    chainId: 1,
+    provider: 'demo',
+  });
+}
 
 export const useWalletStore = create<WalletState & WalletActions>()(
   persist(
@@ -51,7 +62,7 @@ export const useWalletStore = create<WalletState & WalletActions>()(
       incrementNonce: () => set((s) => ({ nonce: s.nonce + 1 })),
 
       connectMetaMask: async () => {
-        const { address, chainId } = await connectMetaMask();
+        const { address, chainId } = await requestMetaMask();
         set({
           isConnected: true,
           address,
@@ -61,23 +72,12 @@ export const useWalletStore = create<WalletState & WalletActions>()(
       },
 
       connectDemo: async () => {
-        const demo =
-          '0x' +
-          Array.from({ length: 40 }, () =>
-            Math.floor(Math.random() * 16).toString(16),
-          ).join('');
-        set({
-          isConnected: true,
-          address: demo,
-          chainId: 1,
-          provider: 'demo',
-        });
+        setDemo(set);
       },
 
       connect: async () => {
         if (isMetaMaskAvailable()) {
-          await connectMetaMask();
-          const { address, chainId } = await connectMetaMask();
+          const { address, chainId } = await requestMetaMask();
           set({
             isConnected: true,
             address,
@@ -86,18 +86,7 @@ export const useWalletStore = create<WalletState & WalletActions>()(
           });
           return;
         }
-        // fallback demo
-        const demo =
-          '0x' +
-          Array.from({ length: 40 }, () =>
-            Math.floor(Math.random() * 16).toString(16),
-          ).join('');
-        set({
-          isConnected: true,
-          address: demo,
-          chainId: 1,
-          provider: 'demo',
-        });
+        setDemo(set);
       },
 
       disconnect: () =>
