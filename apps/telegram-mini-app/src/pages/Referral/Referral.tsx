@@ -1,9 +1,14 @@
 import { Card, Button, Badge } from '../../lib/ui';
+import { useSessionStore } from '../../store/sessionStore';
 import { useTelegram } from '../../telegram/telegram';
 
 export function Referral() {
-  const { user } = useTelegram();
-  const code = user ? `CRY${String(user.id).slice(-6)}` : 'LOGIN';
+  const sessionUser = useSessionStore((s) => s.user);
+  const { user: tgUser } = useTelegram();
+
+  const code =
+    sessionUser?.referralCode ||
+    (tgUser ? `CRY${String(tgUser.id).slice(-6)}` : 'LOGIN');
   const link = `https://t.me/Cryptrabot?start=${code}`;
 
   return (
@@ -28,8 +33,9 @@ export function Referral() {
         </div>
       </Card>
       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-        <Badge variant="neutral">Total —</Badge>
-        <Badge variant="success">Active —</Badge>
+        <Badge variant={sessionUser ? 'success' : 'neutral'}>
+          {sessionUser ? 'Synced' : 'Local preview'}
+        </Badge>
       </div>
     </div>
   );
