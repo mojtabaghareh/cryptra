@@ -19,6 +19,8 @@
     "@cryptra/levels": "workspace:*",
     "@cryptra/referral": "workspace:*",
     "@cryptra/achievements": "workspace:*",
+    "@cryptra/leaderboard": "workspace:*",
+    "@cryptra/market-data": "workspace:*",
     "@cryptra/notifications": "workspace:*",
     "@cryptra/monitoring": "workspace:*",
     "grammy": "^1.30.0",
