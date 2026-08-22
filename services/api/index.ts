@@ -22,6 +22,10 @@ import { xpRoutes } from './routes/xp.routes';
 import { referralRoutes } from './routes/referral.routes';
 import { portfolioRoutes } from './routes/portfolio.routes';
 import { reflectionRoutes } from './routes/reflection.routes';
+import { leaderboardRoutes } from './routes/leaderboard.routes';
+import { ordersRoutes } from './routes/orders.routes';
+import { rewardsRoutes } from './routes/rewards.routes';
+import { adminRoutes } from './routes/admin.routes';
 
 async function buildServer() {
   const app = Fastify({
@@ -76,6 +80,10 @@ async function buildServer() {
   await app.register(referralRoutes, { prefix: '/api/v1/referral' });
   await app.register(portfolioRoutes, { prefix: '/api/v1/portfolio' });
   await app.register(reflectionRoutes, { prefix: '/api/v1/reflection' });
+  await app.register(leaderboardRoutes, { prefix: '/api/v1/leaderboard' });
+  await app.register(ordersRoutes, { prefix: '/api/v1/orders' });
+  await app.register(rewardsRoutes, { prefix: '/api/v1/rewards' });
+  await app.register(adminRoutes, { prefix: '/api/v1/admin' });
 
   app.get('/health', async () => runHealthChecks());
   app.get('/ready', async () => ({
