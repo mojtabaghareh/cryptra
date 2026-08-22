@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { Card, Button, Badge } from '../../lib/ui';
 import { useWalletStore } from '../../store/walletStore';
 import { useSessionStore } from '../../store/sessionStore';
@@ -6,6 +6,18 @@ import { requestSwapQuote, executeSwap, placeOrder, type SwapQuoteResult } from 
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 const USDC_SOL = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+
+const inputStyle: CSSProperties = {
+  width: '100%',
+  marginTop: 4,
+  marginBottom: 12,
+  padding: '12px',
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.1)',
+  background: 'rgba(0,0,0,0.3)',
+  color: 'white',
+  fontSize: 18,
+};
 
 export function Trade() {
   const isConnected = useWalletStore((s) => s.isConnected);
@@ -20,7 +32,6 @@ export function Trade() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Perp
   const [perpSide, setPerpSide] = useState<'LONG' | 'SHORT'>('LONG');
   const [perpSize, setPerpSize] = useState('');
   const [leverage, setLeverage] = useState(5);
@@ -41,7 +52,6 @@ export function Trade() {
 
     setLoading(true);
     try {
-      // Amount in base units for SOL (9 decimals) — demo uses human amount * 1e9
       const lamports = String(Math.floor(Number(fromAmount) * 1e9));
       const res = await requestSwapQuote(token, {
         fromToken: SOL_MINT,
@@ -159,9 +169,11 @@ export function Trade() {
           </div>
 
           {!isConnected && (
-            <Button fullWidth variant="secondary" onClick={() => void connect()} style={{ marginBottom: 8 } as any}>
-              Connect wallet (demo)
-            </Button>
+            <div style={{ marginBottom: 8 }}>
+              <Button fullWidth variant="secondary" onClick={() => void connect()}>
+                Connect wallet (demo)
+              </Button>
+            </div>
           )}
 
           <Button fullWidth disabled={loading || !fromAmount} onClick={() => void handleQuote()}>
@@ -170,9 +182,7 @@ export function Trade() {
 
           {quote && (
             <div style={{ marginTop: 16, fontSize: 13, lineHeight: 1.6 }}>
-              <div>
-                <Badge variant="success">{quote.protocol}</Badge>
-              </div>
+              <Badge variant="success">{quote.protocol}</Badge>
               <div style={{ marginTop: 8 }}>
                 Out: <b>{quote.toAmount}</b>
               </div>
@@ -182,18 +192,11 @@ export function Trade() {
               {quote.priceImpactBps != null && (
                 <div>Impact: {(quote.priceImpactBps / 100).toFixed(2)}%</div>
               )}
-              <Button
-                fullWidth
-                variant="primary"
-                disabled={loading}
-                onClick={() => void handleExecute()}
-                className=""
-              >
-                {loading ? 'Submitting…' : 'Execute swap'}
-              </Button>
-              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 8 }}>
-                Execute records the swap server-side; on-chain signing comes with wallet adapters.
-              </p>
+              <div style={{ marginTop: 12 }}>
+                <Button fullWidth variant="primary" disabled={loading} onClick={() => void handleExecute()}>
+                  {loading ? 'Submitting…' : 'Execute swap'}
+                </Button>
+              </div>
             </div>
           )}
         </Card>
@@ -240,26 +243,10 @@ export function Trade() {
         </Card>
       )}
 
-      {message && (
-        <p style={{ marginTop: 12, fontSize: 13, color: '#00c853' }}>{message}</p>
-      )}
-      {error && (
-        <p style={{ marginTop: 12, fontSize: 13, color: '#ff5252' }}>{error}</p>
-      )}
+      {message && <p style={{ marginTop: 12, fontSize: 13, color: '#00c853' }}>{message}</p>}
+      {error && <p style={{ marginTop: 12, fontSize: 13, color: '#ff5252' }}>{error}</p>}
     </div>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  marginTop: 4,
-  marginBottom: 12,
-  padding: '12px',
-  borderRadius: 12,
-  border: '1px solid rgba(255,255,255,0.1)',
-  background: 'rgba(0,0,0,0.3)',
-  color: 'white',
-  fontSize: 18,
-};
 
 export default Trade;
