@@ -9,6 +9,7 @@ import { Leaderboard } from '../pages/Leaderboard/Leaderboard';
 import { GlobalActivity } from '../pages/GlobalActivity/GlobalActivity';
 import { Referral } from '../pages/Referral/Referral';
 import { Rewards } from '../pages/Rewards/Rewards';
+import { Reflection } from '../pages/Reflection/Reflection';
 
 const rootRoute = createRootRoute({
   component: App,
@@ -68,6 +69,12 @@ const rewardsRoute = createRoute({
   component: Rewards,
 });
 
+const reflectionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/reflection',
+  component: Reflection,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   marketsRoute,
@@ -78,6 +85,7 @@ const routeTree = rootRoute.addChildren([
   activityRoute,
   referralRoute,
   rewardsRoute,
+  reflectionRoute,
 ]);
 
 export const router = createRouter({ routeTree });
@@ -87,4 +95,3 @@ declare module '@tanstack/react-router' {
     router: typeof router;
   }
 }
-
