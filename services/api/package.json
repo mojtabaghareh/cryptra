@@ -46,6 +46,7 @@
     "bs58": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
     "dotenv": "^16.4.5",
+    "ioredis": "^5.4.1",
     "pino": "^9.4.0",
     "pino-pretty": "^11.2.2"
   },
