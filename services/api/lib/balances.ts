@@ -10,6 +10,12 @@ const EVM_RPC =
 
 const SOLANA_RPC = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
 
+const TON_API =
+  process.env.TON_API_URL ||
+  (process.env.TON_API_KEY
+    ? `https://toncenter.com/api/v2`
+    : 'https://toncenter.com/api/v2');
+
 export interface NativeBalance {
   symbol: string;
   chain: 'EVM' | 'SOLANA' | 'TON';
@@ -102,12 +108,52 @@ export async function getSolanaNativeBalance(address: string): Promise<NativeBal
   }
 }
 
+/**
+ * TON balance via toncenter HTTP API (nanoton).
+ */
+export async function getTonNativeBalance(address: string): Promise<NativeBalance> {
+  try {
+    const key = process.env.TON_API_KEY;
+    const url = new URL(`${TON_API}/getAddressBalance`);
+    url.searchParams.set('address', address);
+    if (key) url.searchParams.set('api_key', key);
+
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error(`TON API HTTP ${res.status}`);
+    const json = (await res.json()) as { ok?: boolean; result?: string; error?: string };
+    if (!json.ok && json.error) throw new Error(json.error);
+
+    const nano = BigInt(json.result ?? '0');
+    const ton = Number(nano) / 1e9;
+
+    return {
+      symbol: 'TON',
+      chain: 'TON',
+      address,
+      balance: nano.toString(),
+      balanceFormatted: ton.toFixed(6),
+      decimals: 9,
+    };
+  } catch (e) {
+    return {
+      symbol: 'TON',
+      chain: 'TON',
+      address,
+      balance: '0',
+      balanceFormatted: '0',
+      decimals: 9,
+      error: e instanceof Error ? e.message : 'failed',
+    };
+  }
+}
+
 export async function getNativeBalance(
   chainType: string,
   address: string,
 ): Promise<NativeBalance> {
   if (chainType === 'SOLANA') return getSolanaNativeBalance(address);
   if (chainType === 'EVM') return getEvmNativeBalance(address);
+  if (chainType === 'TON') return getTonNativeBalance(address);
   return {
     symbol: chainType,
     chain: 'TON',
@@ -115,6 +161,6 @@ export async function getNativeBalance(
     balance: '0',
     balanceFormatted: '0',
     decimals: 9,
-    error: 'TON balance not implemented yet',
+    error: `Unsupported chain: ${chainType}`,
   };
 }

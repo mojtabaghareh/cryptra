@@ -2,14 +2,20 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { connectMetaMask as requestMetaMask, isMetaMaskAvailable } from '../lib/ethereum';
 import { connectPhantom as requestPhantom, isPhantomAvailable } from '../lib/solana';
+import { isLikelyTonAddress, tryConnectTonInjected } from '../lib/ton';
 
-export type WalletProviderId = 'metamask' | 'phantom' | 'demo' | string | null;
+export type WalletProviderId =
+  | 'metamask'
+  | 'phantom'
+  | 'ton'
+  | 'demo'
+  | string
+  | null;
 
 interface WalletState {
   isConnected: boolean;
   address: string | null;
   chainId: number | null;
-  /** chain family for API */
   chainType: 'EVM' | 'SOLANA' | 'TON' | null;
   provider: WalletProviderId;
   balance: Record<string, number>;
@@ -26,6 +32,7 @@ interface WalletActions {
   connect: () => Promise<void>;
   connectMetaMask: () => Promise<void>;
   connectPhantom: () => Promise<void>;
+  connectTon: (address?: string) => Promise<void>;
   connectDemo: () => Promise<void>;
   disconnect: () => void;
   reset: () => void;
@@ -88,6 +95,23 @@ export const useWalletStore = create<WalletState & WalletActions>()(
           chainId: null,
           chainType: 'SOLANA',
           provider: 'phantom',
+        });
+      },
+
+      connectTon: async (manualAddress?: string) => {
+        let address = manualAddress?.trim();
+        if (!address) {
+          address = (await tryConnectTonInjected()) ?? undefined;
+        }
+        if (!address || !isLikelyTonAddress(address)) {
+          throw new Error('Enter a valid TON address (EQ… / UQ…) or open in Tonkeeper');
+        }
+        set({
+          isConnected: true,
+          address,
+          chainId: null,
+          chainType: 'TON',
+          provider: 'ton',
         });
       },
 

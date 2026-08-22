@@ -30,6 +30,9 @@ const EVM_RPC =
 
 const SOLANA_RPC = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
 
+const TON_API =
+  process.env.TON_API_URL || 'https://toncenter.com/api/v2';
+
 async function rpcJson(url: string, body: unknown): Promise<any> {
   const res = await fetch(url, {
     method: 'POST',
@@ -77,6 +80,22 @@ async function fetchNative(chainType: string, address: string): Promise<{
         balanceFormatted: (lamports / 1e9).toFixed(6),
       };
     }
+    if (chainType === 'TON') {
+      const key = process.env.TON_API_KEY;
+      const url = new URL(`${TON_API}/getAddressBalance`);
+      url.searchParams.set('address', address);
+      if (key) url.searchParams.set('api_key', key);
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error(`TON ${res.status}`);
+      const json = (await res.json()) as { ok?: boolean; result?: string; error?: string };
+      if (json.error) throw new Error(json.error);
+      const nano = BigInt(json.result ?? '0');
+      return {
+        symbol: 'TON',
+        balance: nano.toString(),
+        balanceFormatted: (Number(nano) / 1e9).toFixed(6),
+      };
+    }
     return {
       symbol: chainType,
       balance: '0',
@@ -85,12 +104,26 @@ async function fetchNative(chainType: string, address: string): Promise<{
     };
   } catch (e) {
     return {
-      symbol: chainType === 'SOLANA' ? 'SOL' : chainType === 'EVM' ? 'ETH' : chainType,
+      symbol:
+        chainType === 'SOLANA'
+          ? 'SOL'
+          : chainType === 'EVM'
+            ? 'ETH'
+            : chainType === 'TON'
+              ? 'TON'
+              : chainType,
       balance: '0',
       balanceFormatted: '0',
       error: e instanceof Error ? e.message : 'failed',
     };
   }
+}
+
+function coingeckoId(symbol: string): string | null {
+  if (symbol === 'ETH') return 'ethereum';
+  if (symbol === 'SOL') return 'solana';
+  if (symbol === 'TON') return 'the-open-network';
+  return null;
 }
 
 export class PortfolioService {
@@ -126,12 +159,7 @@ export class PortfolioService {
       const byId = new Map(prices.map((p) => [p.id, p]));
 
       for (const asset of assets) {
-        const id =
-          asset.symbol === 'ETH'
-            ? 'ethereum'
-            : asset.symbol === 'SOL'
-              ? 'solana'
-              : null;
+        const id = coingeckoId(asset.symbol);
         if (!id) continue;
         const px = byId.get(id);
         if (!px || !asset.balanceFormatted) continue;
