@@ -2,15 +2,16 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Card, Button, Skeleton, Badge, PriceDisplay, AssetIcon } from '../../lib/ui';
 import { useTranslation } from '../../lib/i18n';
-import { formatCurrency, formatPercentage } from '../../lib/format';
 import { useWalletStore } from '../../store/walletStore';
+import { useSessionStore } from '../../store/sessionStore';
+import { apiGet } from '../../lib/api';
 import styles from './Home.module.css';
 
-interface PortfolioSummary {
-  totalBalance: number;
-  totalBalanceChange24h: number;
-  totalBalanceChangePercentage24h: number;
-  assetCount: number;
+interface PortfolioData {
+  totalValueUsd: number;
+  openPositions: number;
+  recentSwaps: number;
+  assets: Array<{ symbol: string; chain?: string; balance: string }>;
 }
 
 const QUICK_ACTIONS = [
@@ -27,35 +28,35 @@ export function Home(): JSX.Element {
   const address = useWalletStore((s) => s.address);
   const connect = useWalletStore((s) => s.connect);
   const disconnect = useWalletStore((s) => s.disconnect);
+  const token = useSessionStore((s) => s.token);
+  const sessionUser = useSessionStore((s) => s.user);
 
-  const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
+  const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchPortfolio = useCallback(async () => {
-    if (!isConnected) {
-      setPortfolio(null);
-      setIsLoading(false);
-      return;
-    }
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      // Demo numbers until API is wired with auth token
-      setPortfolio({
-        totalBalance: 0,
-        totalBalanceChange24h: 0,
-        totalBalanceChangePercentage24h: 0,
-        assetCount: 0,
-      });
+      if (token) {
+        const res = await apiGet<{ success: boolean; data: PortfolioData }>(
+          '/api/v1/portfolio/me',
+          token,
+        );
+        if (res.success) setPortfolio(res.data);
+        else setPortfolio(null);
+      } else {
+        setPortfolio(null);
+      }
+    } catch {
+      setPortfolio(null);
     } finally {
       setIsLoading(false);
     }
-  }, [isConnected]);
+  }, [token]);
 
   useEffect(() => {
     void fetchPortfolio();
   }, [fetchPortfolio]);
-
-  const isPositiveChange = (portfolio?.totalBalanceChange24h ?? 0) >= 0;
 
   return (
     <div className={styles.container}>
@@ -64,10 +65,24 @@ export function Home(): JSX.Element {
           <h1 className={styles.title}>{t('home.title')}</h1>
           <p className={styles.subtitle}>{t('home.subtitle')}</p>
         </div>
-        <Badge variant={isConnected ? 'success' : 'neutral'} size="sm">
-          {isConnected ? t('wallet.status.connected') : t('wallet.status.disconnected')}
+        <Badge variant={token ? 'success' : isConnected ? 'success' : 'neutral'} size="sm">
+          {token ? 'Session' : isConnected ? t('wallet.status.connected') : t('wallet.status.disconnected')}
         </Badge>
       </header>
+
+      {sessionUser && (
+        <section style={{ marginBottom: 12 }}>
+          <Card padded>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontWeight: 600 }}>
+                {sessionUser.firstName || sessionUser.username || 'Trader'}
+              </span>
+              <Badge variant="success">L{sessionUser.level}</Badge>
+              <Badge variant="neutral">{sessionUser.xp} XP</Badge>
+            </div>
+          </Card>
+        </section>
+      )}
 
       <section className={styles.portfolioSection}>
         <Card className={styles.portfolioCard} padded>
@@ -76,35 +91,35 @@ export function Home(): JSX.Element {
               <Skeleton width="60%" height={32} />
               <Skeleton width="40%" height={20} />
             </div>
-          ) : !isConnected ? (
+          ) : portfolio ? (
+            <div className={styles.portfolioContent}>
+              <div className={styles.portfolioHeader}>
+                <span className={styles.portfolioLabel}>{t('home.portfolio.totalBalance')}</span>
+              </div>
+              <PriceDisplay value={portfolio.totalValueUsd} currency="USD" className={styles.balanceAmount} />
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', marginTop: 8 }}>
+                {portfolio.openPositions} open positions · {portfolio.recentSwaps} swaps (7d)
+              </p>
+              {portfolio.assets.length > 0 && (
+                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
+                  {portfolio.assets.length} linked wallet(s)
+                </p>
+              )}
+            </div>
+          ) : !token && !isConnected ? (
             <div className={styles.connectPrompt}>
               <AssetIcon name="wallet" size={48} className={styles.connectIcon} />
               <p className={styles.connectText}>{t('home.connectPrompt')}</p>
               <Button variant="primary" size="lg" onClick={() => void connect()} fullWidth>
                 {t('wallet.action.connect')}
               </Button>
-            </div>
-          ) : portfolio ? (
-            <div className={styles.portfolioContent}>
-              <div className={styles.portfolioHeader}>
-                <span className={styles.portfolioLabel}>{t('home.portfolio.totalBalance')}</span>
-                <Badge variant={isPositiveChange ? 'success' : 'error'} size="sm">
-                  {isPositiveChange ? '+' : ''}
-                  {formatPercentage(portfolio.totalBalanceChangePercentage24h)}
-                </Badge>
-              </div>
-              <PriceDisplay value={portfolio.totalBalance} currency="USD" className={styles.balanceAmount} />
-              <p className={styles.balanceChange}>
-                <span className={isPositiveChange ? styles.positive : styles.negative}>
-                  {isPositiveChange ? '+' : ''}
-                  {formatCurrency(portfolio.totalBalanceChange24h, 'USD')}
-                </span>{' '}
-                {t('home.portfolio.last24h')}
+              <p style={{ marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
+                Or open from Telegram for full session portfolio
               </p>
             </div>
           ) : (
             <div className={styles.errorState}>
-              <p>{t('home.portfolio.error')}</p>
+              <p>{token ? t('home.portfolio.error') : 'Connect wallet or open in Telegram'}</p>
               <Button variant="outline" size="sm" onClick={() => void fetchPortfolio()}>
                 {t('common.retry')}
               </Button>
@@ -148,6 +163,12 @@ export function Home(): JSX.Element {
             </Button>
           ))}
         </div>
+      </section>
+
+      <section style={{ marginTop: 16 }}>
+        <Button fullWidth variant="outline" onClick={() => navigate({ to: '/reflection' })}>
+          Weekly Reflection
+        </Button>
       </section>
     </div>
   );
