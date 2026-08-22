@@ -3,7 +3,6 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import { createUserService } from '@cryptra/service-users';
-import { createWalletService } from '@cryptra/service-wallets';
 import {
   httpRequestDuration,
   httpRequestTotal,
@@ -33,10 +32,7 @@ registerInfrastructureHealthChecks();
 
 function resolveCorsOrigin(): boolean | string[] {
   const raw = (process.env.CORS_ALLOWED_ORIGINS ?? '').trim();
-  if (!raw || raw === '*') {
-    // Dev / Telegram WebView: allow any origin
-    return true;
-  }
+  if (!raw || raw === '*') return true;
   return raw.split(',').map((s) => s.trim()).filter(Boolean);
 }
 
@@ -85,12 +81,11 @@ async function buildServer() {
   });
 
   const userService = createUserService();
-  const walletService = createWalletService();
 
   await app.register(authRoutes, { prefix: '/api/v1/auth' });
   await app.register(marketRoutes, { prefix: '/api/v1/market' });
   await app.register(userRoutes, { prefix: '/api/v1/users', userService });
-  await app.register(walletRoutes, { prefix: '/api/v1/wallets', walletService });
+  await app.register(walletRoutes, { prefix: '/api/v1/wallets' });
   await app.register(swapRoutes, { prefix: '/api/v1/swaps' });
   await app.register(xpRoutes, { prefix: '/api/v1/xp' });
   await app.register(referralRoutes, { prefix: '/api/v1/referral' });
