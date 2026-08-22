@@ -56,6 +56,7 @@ export function Wallet() {
   const chainType = useWalletStore((s) => s.chainType);
   const connectMetaMask = useWalletStore((s) => s.connectMetaMask);
   const connectPhantom = useWalletStore((s) => s.connectPhantom);
+  const connectTon = useWalletStore((s) => s.connectTon);
   const connectDemo = useWalletStore((s) => s.connectDemo);
   const disconnect = useWalletStore((s) => s.disconnect);
   const token = useSessionStore((s) => s.token);
@@ -71,6 +72,7 @@ export function Wallet() {
   const [error, setError] = useState<string | null>(null);
   const [hasMetaMask, setHasMetaMask] = useState(false);
   const [hasPhantom, setHasPhantom] = useState(false);
+  const [tonAddress, setTonAddress] = useState('');
 
   useEffect(() => {
     setHasMetaMask(isMetaMaskAvailable());
@@ -110,6 +112,7 @@ export function Wallet() {
     const state = useWalletStore.getState();
     const addr = state.address;
     const prov = state.provider;
+    const ctype = state.chainType;
     if (!token || !addr) {
       setError('Need Telegram session + connected wallet');
       return;
@@ -152,6 +155,20 @@ export function Wallet() {
           token,
         );
         setMessage(res.linked ? 'Phantom linked with signature ✓' : 'Already linked');
+      } else if (prov === 'ton' || ctype === 'TON') {
+        // Full TonConnect proof can be added later; dev/link with skip in non-prod
+        const res = await apiPost<{ success: boolean; linked: boolean }>(
+          '/api/v1/wallets/connect',
+          {
+            address: addr,
+            chainType: 'TON',
+            provider: 'tonconnect',
+            skipSignature: true,
+            label: 'TON',
+          },
+          token,
+        );
+        setMessage(res.linked ? 'TON wallet linked' : 'Already linked');
       } else {
         const res = await apiPost<{ success: boolean; linked: boolean }>(
           '/api/v1/wallets/connect',
@@ -174,7 +191,12 @@ export function Wallet() {
     }
   }
 
-  const balByAddress = new Map(balances.map((b) => [b.address.toLowerCase(), b]));
+  // TON addresses are case-sensitive — index both forms
+  const balByAddress = new Map<string, WalletBalance>();
+  for (const b of balances) {
+    balByAddress.set(b.address, b);
+    balByAddress.set(b.address.toLowerCase(), b);
+  }
 
   return (
     <div style={{ padding: 16 }}>
@@ -202,7 +224,7 @@ export function Wallet() {
           {!isConnected ? (
             <Card padded>
               <p style={{ marginBottom: 12, color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>
-                Connect MetaMask (EVM), Phantom (Solana), or demo for testing.
+                MetaMask · Phantom · TON · Demo
               </p>
               <div style={{ display: 'grid', gap: 8 }}>
                 <Button
@@ -230,6 +252,37 @@ export function Wallet() {
                 >
                   {hasPhantom ? 'Connect Phantom' : 'Phantom not detected'}
                 </Button>
+
+                <div>
+                  <input
+                    value={tonAddress}
+                    onChange={(e) => setTonAddress(e.target.value)}
+                    placeholder="TON address (EQ… / UQ…)"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 12,
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: 'rgba(0,0,0,0.3)',
+                      color: 'white',
+                      marginBottom: 8,
+                      fontSize: 13,
+                    }}
+                  />
+                  <Button
+                    fullWidth
+                    variant="secondary"
+                    onClick={() => {
+                      setError(null);
+                      void connectTon(tonAddress || undefined).catch((e) =>
+                        setError(e instanceof Error ? e.message : 'TON failed'),
+                      );
+                    }}
+                  >
+                    Connect TON
+                  </Button>
+                </div>
+
                 <Button
                   fullWidth
                   variant="outline"
@@ -269,7 +322,7 @@ export function Wallet() {
                       ? 'Signing…'
                       : provider === 'metamask' || provider === 'phantom'
                         ? 'Sign & link to account'
-                        : 'Link demo to account'}
+                        : 'Link to account'}
                   </Button>
                 </div>
               )}
@@ -288,7 +341,8 @@ export function Wallet() {
               </div>
               <div style={{ display: 'grid', gap: 8 }}>
                 {linked.map((w) => {
-                  const bal = balByAddress.get(w.address.toLowerCase());
+                  const bal =
+                    balByAddress.get(w.address) || balByAddress.get(w.address.toLowerCase());
                   return (
                     <Card key={w.id} padded>
                       <div style={{ fontWeight: 600, fontSize: 13 }}>
