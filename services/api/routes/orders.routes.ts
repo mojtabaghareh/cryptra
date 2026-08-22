@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { prisma } from '@cryptra/database';
 import { requireAuth } from '../middleware/auth';
 import { AppError, ErrorCodes } from '@cryptra/core';
+import { xpEngine } from '@cryptra/xp';
+import { achievementService } from '@cryptra/achievements';
+import { referralService } from '@cryptra/referral';
 
 const placeOrderSchema = z.object({
   protocol: z.string().default('hyperliquid'),
@@ -45,9 +48,11 @@ export async function ordersRoutes(app: FastifyInstance) {
     }
 
     const data = body.data;
+    const userId = request.user!.userId;
+
     const order = await prisma.order.create({
       data: {
-        userId: request.user!.userId,
+        userId,
         protocol: data.protocol,
         symbol: data.symbol,
         side: data.side,
@@ -60,12 +65,11 @@ export async function ordersRoutes(app: FastifyInstance) {
       },
     });
 
-    // Market orders immediately open a position record (execution adapter fills later)
     let position = null;
     if (data.type === 'MARKET') {
       position = await prisma.position.create({
         data: {
-          userId: request.user!.userId,
+          userId,
           orderId: order.id,
           protocol: data.protocol,
           symbol: data.symbol,
@@ -79,8 +83,27 @@ export async function ordersRoutes(app: FastifyInstance) {
 
       await prisma.order.update({
         where: { id: order.id },
-        data: { status: 'FILLED', filledSize: data.size, avgFillPrice: data.price ?? '0' },
+        data: {
+          status: 'FILLED',
+          filledSize: data.size,
+          avgFillPrice: data.price ?? '0',
+        },
       });
+    }
+
+    // Side effects: XP, achievements, referral activation
+    try {
+      await xpEngine.award({
+        userId,
+        source: 'TRADE',
+        amount: 40,
+        description: `${data.side} ${data.symbol}`,
+        metadata: { orderId: order.id },
+      });
+      await achievementService.tryUnlock(userId, 'FIRST_TRADE');
+      await referralService.activate(userId);
+    } catch (err) {
+      console.error('[orders] post-trade side effects failed', err);
     }
 
     return { success: true, data: { order, position } };

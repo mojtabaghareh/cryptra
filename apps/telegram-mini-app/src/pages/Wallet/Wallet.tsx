@@ -2,14 +2,12 @@ import { useEffect, useState } from 'react';
 import { Card, Button, Badge, Skeleton } from '../../lib/ui';
 import { useWalletStore } from '../../store/walletStore';
 import { useSessionStore } from '../../store/sessionStore';
-import { apiGet } from '../../lib/api';
+import { apiGet, apiPost } from '../../lib/api';
 
 interface SwapRow {
   id: string;
   fromToken: string;
   toToken: string;
-  fromAmount: string;
-  toAmount: string | null;
   status: string;
   protocol: string | null;
   createdAt: string;
@@ -25,6 +23,15 @@ interface OrderRow {
   createdAt: string;
 }
 
+interface LinkedWallet {
+  id: string;
+  address: string;
+  chainType: string;
+  provider: string;
+  isPrimary: boolean;
+  label: string | null;
+}
+
 export function Wallet() {
   const isConnected = useWalletStore((s) => s.isConnected);
   const address = useWalletStore((s) => s.address);
@@ -35,39 +42,72 @@ export function Wallet() {
 
   const [swaps, setSwaps] = useState<SwapRow[]>([]);
   const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [linked, setLinked] = useState<LinkedWallet[]>([]);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<'activity' | 'wallet'>('wallet');
+  const [linking, setLinking] = useState(false);
+  const [tab, setTab] = useState<'wallet' | 'activity'>('wallet');
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function loadActivity() {
+    if (!token) return;
+    setLoading(true);
+    try {
+      const [s, o, w] = await Promise.all([
+        apiGet<{ success: boolean; data: SwapRow[] }>('/api/v1/swaps', token),
+        apiGet<{ success: boolean; data: OrderRow[] }>('/api/v1/orders', token),
+        apiGet<{ success: boolean; data: LinkedWallet[] }>('/api/v1/wallets', token),
+      ]);
+      setSwaps(Array.isArray(s.data) ? s.data : []);
+      setOrders(Array.isArray(o.data) ? o.data : []);
+      setLinked(Array.isArray(w.data) ? w.data : []);
+    } catch {
+      setSwaps([]);
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    if (!token) return;
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      try {
-        const [s, o] = await Promise.all([
-          apiGet<{ success: boolean; data: SwapRow[] }>('/api/v1/swaps', token),
-          apiGet<{ success: boolean; data: OrderRow[] }>('/api/v1/orders', token),
-        ]);
-        if (!cancelled) {
-          setSwaps(Array.isArray(s.data) ? s.data : []);
-          setOrders(Array.isArray(o.data) ? o.data : []);
-        }
-      } catch {
-        if (!cancelled) {
-          setSwaps([]);
-          setOrders([]);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    void load();
-    return () => {
-      cancelled = true;
-    };
+    void loadActivity();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  async function handleConnectAndLink() {
+    setError(null);
+    setMessage(null);
+    await connect();
+  }
+
+  async function linkToAccount() {
+    const addr = useWalletStore.getState().address;
+    if (!token || !addr) {
+      setError('Need Telegram session + local wallet connect');
+      return;
+    }
+    setLinking(true);
+    setError(null);
+    try {
+      const res = await apiPost<{ success: boolean; data: LinkedWallet; linked: boolean }>(
+        '/api/v1/wallets/connect',
+        {
+          address: addr,
+          chainType: 'EVM',
+          provider: 'demo',
+          skipSignature: true,
+          label: 'Demo wallet',
+        },
+        token,
+      );
+      setMessage(res.linked ? 'Wallet linked to your account' : 'Wallet already linked');
+      await loadActivity();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Link failed');
+    } finally {
+      setLinking(false);
+    }
+  }
 
   return (
     <div style={{ padding: 16 }}>
@@ -95,20 +135,17 @@ export function Wallet() {
           {!isConnected ? (
             <Card padded>
               <p style={{ marginBottom: 12, color: 'rgba(255,255,255,0.7)' }}>
-                MetaMask · Phantom · TON Connect · WalletConnect
+                Connect a demo wallet, then link it to your Telegram account.
               </p>
-              <Button fullWidth onClick={() => void connect()}>
-                Connect wallet
+              <Button fullWidth onClick={() => void handleConnectAndLink()}>
+                Connect wallet (demo)
               </Button>
-              <p style={{ marginTop: 12, fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
-                Demo mode until chain adapters are wired
-              </p>
             </Card>
           ) : (
             <Card padded>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Connected</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Local session</div>
                   <code style={{ fontSize: 13 }}>
                     {address?.slice(0, 8)}…{address?.slice(-6)}
                   </code>
@@ -120,18 +157,40 @@ export function Wallet() {
                   Disconnect
                 </Button>
               </div>
+              {token && (
+                <div style={{ marginTop: 12 }}>
+                  <Button fullWidth disabled={linking} onClick={() => void linkToAccount()}>
+                    {linking ? 'Linking…' : 'Link to Cryptra account'}
+                  </Button>
+                </div>
+              )}
             </Card>
           )}
 
-          {token ? (
-            <p style={{ marginTop: 12, fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
-              Session active — activity loads from API
-            </p>
-          ) : (
-            <p style={{ marginTop: 12, fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
-              Open from Telegram to load on-chain activity history
-            </p>
+          {linked.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <h2 style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>
+                Linked on server
+              </h2>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {linked.map((w) => (
+                  <Card key={w.id} padded>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>
+                      {w.address.slice(0, 8)}…{w.address.slice(-6)}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                      <Badge variant="neutral">{w.chainType}</Badge>
+                      <Badge variant="neutral">{w.provider}</Badge>
+                      {w.isPrimary && <Badge variant="success">Primary</Badge>}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
           )}
+
+          {message && <p style={{ marginTop: 12, color: '#00c853', fontSize: 13 }}>{message}</p>}
+          {error && <p style={{ marginTop: 12, color: '#ff5252', fontSize: 13 }}>{error}</p>}
         </>
       )}
 
@@ -139,81 +198,40 @@ export function Wallet() {
         <>
           {!token && (
             <Card padded>
-              <p style={{ color: 'rgba(255,255,255,0.6)' }}>Login via Telegram Mini App to see history.</p>
+              <p style={{ color: 'rgba(255,255,255,0.6)' }}>Login via Telegram to see history.</p>
             </Card>
           )}
-
           {loading && (
             <div style={{ display: 'grid', gap: 8 }}>
               <Skeleton height={64} />
               <Skeleton height={64} />
             </div>
           )}
-
           {!loading && token && swaps.length === 0 && orders.length === 0 && (
             <Card padded>
-              <p style={{ color: 'rgba(255,255,255,0.6)' }}>
-                No swaps or orders yet. Try Trade → Get quote.
-              </p>
+              <p style={{ color: 'rgba(255,255,255,0.6)' }}>No activity yet.</p>
             </Card>
           )}
-
-          {swaps.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <h2 style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Swaps</h2>
-              <div style={{ display: 'grid', gap: 8 }}>
-                {swaps.slice(0, 20).map((s) => (
-                  <Card key={s.id} padded>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 13 }}>
-                          {s.fromToken.slice(0, 6)}… → {s.toToken.slice(0, 6)}…
-                        </div>
-                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>
-                          {s.protocol ?? '—'} · {new Date(s.createdAt).toLocaleString()}
-                        </div>
-                      </div>
-                      <Badge
-                        variant={
-                          s.status === 'CONFIRMED' || s.status === 'SUBMITTED'
-                            ? 'success'
-                            : s.status === 'FAILED'
-                              ? 'error'
-                              : 'neutral'
-                        }
-                      >
-                        {s.status}
-                      </Badge>
-                    </div>
-                  </Card>
-                ))}
+          {swaps.slice(0, 15).map((s) => (
+            <Card key={s.id} padded>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13 }}>
+                  Swap · {s.protocol ?? 'DEX'}
+                </span>
+                <Badge variant={s.status === 'SUBMITTED' ? 'success' : 'neutral'}>{s.status}</Badge>
               </div>
-            </div>
-          )}
-
-          {orders.length > 0 && (
-            <div>
-              <h2 style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Orders</h2>
-              <div style={{ display: 'grid', gap: 8 }}>
-                {orders.slice(0, 20).map((o) => (
-                  <Card key={o.id} padded>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 13 }}>
-                          {o.side} {o.symbol} · {o.size}
-                          {o.leverage ? ` · ${o.leverage}x` : ''}
-                        </div>
-                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>
-                          {new Date(o.createdAt).toLocaleString()}
-                        </div>
-                      </div>
-                      <Badge variant={o.status === 'FILLED' ? 'success' : 'neutral'}>{o.status}</Badge>
-                    </div>
-                  </Card>
-                ))}
+            </Card>
+          ))}
+          {orders.slice(0, 15).map((o) => (
+            <Card key={o.id} padded>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13 }}>
+                  {o.side} {o.symbol}
+                </span>
+                <Badge variant="neutral">{o.status}</Badge>
               </div>
-            </div>
-          )}
+            </Card>
+          ))}
         </>
       )}
     </div>
