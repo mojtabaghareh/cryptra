@@ -2,10 +2,36 @@ import { useState, type CSSProperties } from 'react';
 import { Card, Button, Badge } from '../../lib/ui';
 import { useWalletStore } from '../../store/walletStore';
 import { useSessionStore } from '../../store/sessionStore';
-import { requestSwapQuote, executeSwap, placeOrder, type SwapQuoteResult } from '../../lib/api';
+import {
+  requestSwapQuote,
+  buildSwapTx,
+  executeSwap,
+  placeOrder,
+  type SwapQuoteResult,
+} from '../../lib/api';
 
-const SOL_MINT = 'So11111111111111111111111111111111111111112';
-const USDC_SOL = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+const PAIRS = [
+  {
+    id: 'sol-usdc',
+    label: 'SOL → USDC',
+    fromChain: 'solana',
+    toChain: 'solana',
+    fromToken: 'So11111111111111111111111111111111111111112',
+    toToken: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+    decimals: 9,
+    unit: 'SOL',
+  },
+  {
+    id: 'eth-usdc',
+    label: 'ETH → USDC (1inch)',
+    fromChain: 'ethereum',
+    toChain: 'ethereum',
+    fromToken: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    toToken: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+    decimals: 18,
+    unit: 'ETH',
+  },
+] as const;
 
 const inputStyle: CSSProperties = {
   width: '100%',
@@ -21,13 +47,17 @@ const inputStyle: CSSProperties = {
 
 export function Trade() {
   const isConnected = useWalletStore((s) => s.isConnected);
+  const walletAddress = useWalletStore((s) => s.address);
   const connect = useWalletStore((s) => s.connect);
   const token = useSessionStore((s) => s.token);
 
   const [tab, setTab] = useState<'swap' | 'perp'>('swap');
+  const [pairId, setPairId] = useState<(typeof PAIRS)[number]['id']>('sol-usdc');
   const [fromAmount, setFromAmount] = useState('');
   const [slippageBps, setSlippageBps] = useState(50);
   const [quote, setQuote] = useState<SwapQuoteResult | null>(null);
+  const [builtTx, setBuiltTx] = useState<unknown>(null);
+  const [txHash, setTxHash] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,10 +66,14 @@ export function Trade() {
   const [perpSize, setPerpSize] = useState('');
   const [leverage, setLeverage] = useState(5);
 
+  const pair = PAIRS.find((p) => p.id === pairId)!;
+
   async function handleQuote() {
     setError(null);
     setMessage(null);
     setQuote(null);
+    setBuiltTx(null);
+    setTxHash('');
 
     if (!token) {
       setError('Authenticate inside Telegram first (session required).');
@@ -52,13 +86,13 @@ export function Trade() {
 
     setLoading(true);
     try {
-      const lamports = String(Math.floor(Number(fromAmount) * 1e9));
+      const raw = String(Math.floor(Number(fromAmount) * 10 ** pair.decimals));
       const res = await requestSwapQuote(token, {
-        fromToken: SOL_MINT,
-        toToken: USDC_SOL,
-        fromAmount: lamports,
-        fromChain: 'solana',
-        toChain: 'solana',
+        fromToken: pair.fromToken,
+        toToken: pair.toToken,
+        fromAmount: raw,
+        fromChain: pair.fromChain,
+        toChain: pair.toChain,
         slippageBps,
       });
       if (res.success) {
@@ -72,14 +106,45 @@ export function Trade() {
     }
   }
 
+  async function handleBuild() {
+    if (!token || !quote) return;
+    if (!walletAddress) {
+      setError('Connect a wallet address first (Phantom for Solana / MetaMask for EVM)');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await buildSwapTx(token, {
+        quoteId: quote.quoteId,
+        userAddress: walletAddress,
+      });
+      setBuiltTx(res.data.transaction);
+      setMessage(`Transaction built (${res.data.protocol}). Sign in wallet, then paste tx hash.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Build failed');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleExecute() {
     if (!token || !quote) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await executeSwap(token, { quoteId: quote.quoteId });
-      setMessage(`Swap ${res.data.status} · id ${res.data.swapId}`);
+      const res = await executeSwap(token, {
+        quoteId: quote.quoteId,
+        txHash: txHash.trim() || undefined,
+      });
+      setMessage(
+        `Swap ${res.data.status}` +
+          (res.data.txHash ? ` · tx ${res.data.txHash.slice(0, 12)}…` : '') +
+          ` · id ${res.data.swapId.slice(0, 8)}`,
+      );
       setQuote(null);
+      setBuiltTx(null);
+      setTxHash('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Execute failed');
     } finally {
@@ -119,7 +184,7 @@ export function Trade() {
     <div style={{ padding: 16 }}>
       <h1 style={{ fontSize: 22, fontWeight: 700 }}>Trade</h1>
       <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 16 }}>
-        Swap (Jupiter / 1inch) · Perps (Hyperliquid)
+        Quote → Build tx → Sign in wallet → Execute with tx hash
       </p>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
@@ -142,8 +207,27 @@ export function Trade() {
 
       {tab === 'swap' ? (
         <Card padded>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            {PAIRS.map((p) => (
+              <Button
+                key={p.id}
+                size="sm"
+                variant={pairId === p.id ? 'primary' : 'secondary'}
+                onClick={() => {
+                  setPairId(p.id);
+                  setQuote(null);
+                  setBuiltTx(null);
+                }}
+              >
+                {p.label}
+              </Button>
+            ))}
+          </div>
+
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>From (SOL → USDC)</label>
+            <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
+              Amount ({pair.unit})
+            </label>
             <input
               value={fromAmount}
               onChange={(e) => setFromAmount(e.target.value)}
@@ -171,13 +255,19 @@ export function Trade() {
           {!isConnected && (
             <div style={{ marginBottom: 8 }}>
               <Button fullWidth variant="secondary" onClick={() => void connect()}>
-                Connect wallet (demo)
+                Connect wallet
               </Button>
             </div>
           )}
 
+          {isConnected && walletAddress && (
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>
+              Signer: {walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}
+            </p>
+          )}
+
           <Button fullWidth disabled={loading || !fromAmount} onClick={() => void handleQuote()}>
-            {loading ? 'Loading…' : 'Get quote'}
+            {loading ? 'Loading…' : '1. Get quote'}
           </Button>
 
           {quote && (
@@ -192,9 +282,36 @@ export function Trade() {
               {quote.priceImpactBps != null && (
                 <div>Impact: {(quote.priceImpactBps / 100).toFixed(2)}%</div>
               )}
-              <div style={{ marginTop: 12 }}>
+
+              <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
+                <Button fullWidth variant="secondary" disabled={loading} onClick={() => void handleBuild()}>
+                  {loading ? 'Building…' : '2. Build transaction'}
+                </Button>
+
+                {builtTx != null && (
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: 'rgba(255,255,255,0.45)',
+                      maxHeight: 80,
+                      overflow: 'auto',
+                      wordBreak: 'break-all',
+                    }}
+                  >
+                    Tx payload ready ({typeof builtTx === 'object' ? 'object' : typeof builtTx}). Sign with
+                    Phantom/MetaMask, then paste hash below.
+                  </div>
+                )}
+
+                <input
+                  value={txHash}
+                  onChange={(e) => setTxHash(e.target.value)}
+                  placeholder="tx hash (optional but recommended)"
+                  style={{ ...inputStyle, fontSize: 13, marginBottom: 0 }}
+                />
+
                 <Button fullWidth variant="primary" disabled={loading} onClick={() => void handleExecute()}>
-                  {loading ? 'Submitting…' : 'Execute swap'}
+                  {loading ? 'Submitting…' : '3. Execute swap'}
                 </Button>
               </div>
             </div>

@@ -3,17 +3,14 @@ import { z } from 'zod';
 import { swapService, jupiterAdapter, oneInchAdapter } from '@cryptra/swap-engine';
 import { requireAuth } from '../middleware/auth';
 import { AppError, ErrorCodes } from '@cryptra/core';
+import { prisma } from '@cryptra/database';
 
-// Register adapters once
 swapService.registerAdapter(jupiterAdapter);
 swapService.registerAdapter(oneInchAdapter);
 
 export async function swapRoutes(app: FastifyInstance) {
   app.addHook('preHandler', requireAuth);
 
-  /**
-   * POST /api/v1/swaps/quote
-   */
   app.post('/quote', async (request) => {
     const body = z
       .object({
@@ -44,8 +41,70 @@ export async function swapRoutes(app: FastifyInstance) {
   });
 
   /**
-   * POST /api/v1/swaps/execute
+   * POST /api/v1/swaps/build
+   * Build a signable transaction from a quoted swap (Jupiter / 1inch).
    */
+  app.post('/build', async (request) => {
+    const body = z
+      .object({
+        quoteId: z.string().min(1),
+        userAddress: z.string().min(8),
+      })
+      .safeParse(request.body);
+
+    if (!body.success) {
+      throw new AppError({
+        code: ErrorCodes.VALIDATION_FAILED,
+        message: 'quoteId and userAddress required',
+      });
+    }
+
+    const swap = await prisma.swap.findFirst({
+      where: { id: body.data.quoteId, userId: request.user!.userId },
+    });
+
+    if (!swap) {
+      throw new AppError({ code: ErrorCodes.NOT_FOUND, message: 'Quote not found' });
+    }
+
+    if (swap.status !== 'QUOTED' && swap.status !== 'PENDING') {
+      throw new AppError({
+        code: ErrorCodes.CONFLICT,
+        message: `Cannot build tx for status ${swap.status}`,
+      });
+    }
+
+    const protocol = swap.protocol ?? 'jupiter';
+    const adapter =
+      protocol === 'jupiter'
+        ? jupiterAdapter
+        : protocol === '1inch' || protocol === 'oneinch'
+          ? oneInchAdapter
+          : null;
+
+    if (!adapter?.buildTransaction) {
+      throw new AppError({
+        code: ErrorCodes.SWAP_QUOTE_FAILED,
+        message: `Adapter ${protocol} does not support buildTransaction`,
+      });
+    }
+
+    const built = await adapter.buildTransaction({
+      quote: swap.route,
+      userAddress: body.data.userAddress,
+    });
+
+    return {
+      success: true,
+      data: {
+        quoteId: swap.id,
+        protocol,
+        chain: swap.fromChain,
+        transaction: built,
+      },
+    };
+  });
+
   app.post('/execute', async (request) => {
     const body = z
       .object({
@@ -70,17 +129,11 @@ export async function swapRoutes(app: FastifyInstance) {
     return { success: true, data: result };
   });
 
-  /**
-   * GET /api/v1/swaps
-   */
   app.get('/', async (request) => {
     const swaps = await swapService.listSwaps(request.user!.userId);
     return { success: true, data: swaps };
   });
 
-  /**
-   * GET /api/v1/swaps/:id
-   */
   app.get<{ Params: { id: string } }>('/:id', async (request) => {
     const swap = await swapService.getSwap(request.params.id, request.user!.userId);
     return { success: true, data: swap };

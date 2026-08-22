@@ -132,6 +132,21 @@ export async function requestSwapQuote(
   );
 }
 
+export async function buildSwapTx(
+  token: string,
+  body: { quoteId: string; userAddress: string },
+) {
+  return apiPost<{
+    success: boolean;
+    data: {
+      quoteId: string;
+      protocol: string;
+      chain: string;
+      transaction: unknown;
+    };
+  }>('/api/v1/swaps/build', body, token);
+}
+
 export async function executeSwap(
   token: string,
   body: { quoteId: string; txHash?: string },
