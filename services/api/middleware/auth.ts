@@ -32,7 +32,15 @@ function getJwtSecret(): string {
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
 export function issueSessionToken(user: SessionUser): string {
-  return jwt.sign(user, getJwtSecret(), { expiresIn: SESSION_TTL_SECONDS });
+  return jwt.sign(
+    {
+      sub: user.userId,
+      userId: user.userId,
+      authMethod: user.authMethod,
+    },
+    getJwtSecret(),
+    { expiresIn: SESSION_TTL_SECONDS },
+  );
 }
 
 export function verifySessionToken(token: string): SessionUser {
@@ -42,10 +50,23 @@ export function verifySessionToken(token: string): SessionUser {
       throw new Error('malformed token payload');
     }
     const payload = decoded as Record<string, unknown>;
-    if (typeof payload.userId !== 'string' || typeof payload.authMethod !== 'string') {
+
+    // Support both auth package tokens (sub) and session tokens (userId)
+    const userId =
+      typeof payload.userId === 'string'
+        ? payload.userId
+        : typeof payload.sub === 'string'
+          ? payload.sub
+          : null;
+
+    if (!userId) {
       throw new Error('malformed token payload');
     }
-    return { userId: payload.userId, authMethod: payload.authMethod as SessionUser['authMethod'] };
+
+    const authMethod =
+      payload.authMethod === 'wallet-signature' ? 'wallet-signature' : 'telegram';
+
+    return { userId, authMethod };
   } catch (error) {
     throw new AppError({
       code: ErrorCodes.UNAUTHORIZED,
@@ -55,13 +76,6 @@ export function verifySessionToken(token: string): SessionUser {
   }
 }
 
-/**
- * Verifies Telegram Mini App `initData` per the official Telegram WebApp
- * authentication scheme: HMAC-SHA256("WebAppData", BOT_TOKEN) is the secret
- * key, and the resulting HMAC-SHA256 of the sorted, newline-joined
- * data-check-string must equal the provided `hash` field.
- * https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
- */
 export function verifyTelegramInitData(initData: string, maxAgeSeconds = 86_400): Record<string, string> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   if (!botToken) {
@@ -100,7 +114,6 @@ export function verifyTelegramInitData(initData: string, maxAgeSeconds = 86_400)
   return Object.fromEntries(params.entries());
 }
 
-/** Verifies an EIP-191 personal_sign signature over `message` was produced by `address`. */
 export function verifyEvmSignature(message: string, signature: string, address: string): boolean {
   if (!isValidEvmAddress(address)) return false;
   try {
@@ -111,7 +124,6 @@ export function verifyEvmSignature(message: string, signature: string, address: 
   }
 }
 
-/** Verifies an ed25519 signature (Solana wallet signMessage output) over `message`. */
 export function verifySolanaSignature(message: string, signatureBase58: string, address: string): boolean {
   if (!isValidSolanaAddress(address)) return false;
   try {
@@ -124,11 +136,6 @@ export function verifySolanaSignature(message: string, signatureBase58: string, 
   }
 }
 
-/**
- * Verifies a TON `ton_proof` ed25519 signature. The wallet's ed25519 public
- * key must be supplied by the caller (obtained from the TON Connect
- * `connectItems.tonProof` payload alongside the account's `publicKey` field).
- */
 export function verifyTonProofSignature(payload: {
   message: string;
   signatureBase64: string;
@@ -146,7 +153,6 @@ export function verifyTonProofSignature(payload: {
   }
 }
 
-/** Fastify preHandler hook enforcing a valid Bearer session token on protected routes. */
 export async function requireAuth(request: FastifyRequest, _reply: FastifyReply): Promise<void> {
   const header = request.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
@@ -155,4 +161,3 @@ export async function requireAuth(request: FastifyRequest, _reply: FastifyReply)
   const token = header.slice('Bearer '.length).trim();
   request.user = verifySessionToken(token);
 }
-
