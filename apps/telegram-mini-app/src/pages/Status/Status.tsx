@@ -26,6 +26,12 @@ function statusColor(s: string): string {
   return '#ff5252';
 }
 
+function badgeVariant(s: string): 'success' | 'error' | 'neutral' {
+  if (s === 'up' || s === 'healthy') return 'success';
+  if (s === 'down' || s === 'unhealthy') return 'error';
+  return 'neutral';
+}
+
 export function Status() {
   const [report, setReport] = useState<HealthReport | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +99,7 @@ export function Status() {
               />
               <strong style={{ fontSize: 18, textTransform: 'uppercase' }}>{report.status}</strong>
               {httpCode != null && (
-                <Badge variant={httpCode === 503 ? 'danger' : 'neutral'}>HTTP {httpCode}</Badge>
+                <Badge variant={httpCode === 503 ? 'error' : 'neutral'}>HTTP {httpCode}</Badge>
               )}
             </div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
@@ -114,13 +120,7 @@ export function Status() {
                     )}
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <Badge
-                      variant={
-                        c.status === 'up' ? 'success' : c.status === 'degraded' ? 'warning' : 'danger'
-                      }
-                    >
-                      {c.status}
-                    </Badge>
+                    <Badge variant={badgeVariant(c.status)}>{c.status}</Badge>
                     {c.latencyMs != null && (
                       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>
                         {c.latencyMs}ms
