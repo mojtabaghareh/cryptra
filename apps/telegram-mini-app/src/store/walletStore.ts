@@ -1,12 +1,17 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { connectMetaMask as requestMetaMask, isMetaMaskAvailable } from '../lib/ethereum';
+import { connectPhantom as requestPhantom, isPhantomAvailable } from '../lib/solana';
+
+export type WalletProviderId = 'metamask' | 'phantom' | 'demo' | string | null;
 
 interface WalletState {
   isConnected: boolean;
   address: string | null;
   chainId: number | null;
-  provider: string | null;
+  /** chain family for API */
+  chainType: 'EVM' | 'SOLANA' | 'TON' | null;
+  provider: WalletProviderId;
   balance: Record<string, number>;
   nonce: number;
 }
@@ -15,11 +20,12 @@ interface WalletActions {
   setConnected: (connected: boolean) => void;
   setAddress: (address: string | null) => void;
   setChainId: (chainId: number | null) => void;
-  setProvider: (provider: string | null) => void;
+  setProvider: (provider: WalletProviderId) => void;
   setBalance: (token: string, balance: number) => void;
   incrementNonce: () => void;
   connect: () => Promise<void>;
   connectMetaMask: () => Promise<void>;
+  connectPhantom: () => Promise<void>;
   connectDemo: () => Promise<void>;
   disconnect: () => void;
   reset: () => void;
@@ -29,6 +35,7 @@ const initialState: WalletState = {
   isConnected: false,
   address: null,
   chainId: null,
+  chainType: null,
   provider: null,
   balance: {},
   nonce: 0,
@@ -42,6 +49,7 @@ function setDemo(set: (partial: Partial<WalletState>) => void) {
     isConnected: true,
     address: demo,
     chainId: 1,
+    chainType: 'EVM',
     provider: 'demo',
   });
 }
@@ -67,7 +75,19 @@ export const useWalletStore = create<WalletState & WalletActions>()(
           isConnected: true,
           address,
           chainId,
+          chainType: 'EVM',
           provider: 'metamask',
+        });
+      },
+
+      connectPhantom: async () => {
+        const { address } = await requestPhantom();
+        set({
+          isConnected: true,
+          address,
+          chainId: null,
+          chainType: 'SOLANA',
+          provider: 'phantom',
         });
       },
 
@@ -82,7 +102,19 @@ export const useWalletStore = create<WalletState & WalletActions>()(
             isConnected: true,
             address,
             chainId,
+            chainType: 'EVM',
             provider: 'metamask',
+          });
+          return;
+        }
+        if (isPhantomAvailable()) {
+          const { address } = await requestPhantom();
+          set({
+            isConnected: true,
+            address,
+            chainId: null,
+            chainType: 'SOLANA',
+            provider: 'phantom',
           });
           return;
         }
@@ -94,6 +126,7 @@ export const useWalletStore = create<WalletState & WalletActions>()(
           isConnected: false,
           address: null,
           chainId: null,
+          chainType: null,
           provider: null,
         }),
 

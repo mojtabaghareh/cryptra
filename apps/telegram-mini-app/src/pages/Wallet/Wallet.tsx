@@ -4,6 +4,11 @@ import { useWalletStore } from '../../store/walletStore';
 import { useSessionStore } from '../../store/sessionStore';
 import { apiGet, apiPost } from '../../lib/api';
 import { buildLinkMessage, isMetaMaskAvailable, personalSign } from '../../lib/ethereum';
+import {
+  buildSolanaLinkMessage,
+  isPhantomAvailable,
+  signPhantomMessage,
+} from '../../lib/solana';
 
 interface SwapRow {
   id: string;
@@ -38,7 +43,9 @@ export function Wallet() {
   const address = useWalletStore((s) => s.address);
   const provider = useWalletStore((s) => s.provider);
   const chainId = useWalletStore((s) => s.chainId);
+  const chainType = useWalletStore((s) => s.chainType);
   const connectMetaMask = useWalletStore((s) => s.connectMetaMask);
+  const connectPhantom = useWalletStore((s) => s.connectPhantom);
   const connectDemo = useWalletStore((s) => s.connectDemo);
   const disconnect = useWalletStore((s) => s.disconnect);
   const token = useSessionStore((s) => s.token);
@@ -51,10 +58,12 @@ export function Wallet() {
   const [tab, setTab] = useState<'wallet' | 'activity'>('wallet');
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [hasInjected, setHasInjected] = useState(false);
+  const [hasMetaMask, setHasMetaMask] = useState(false);
+  const [hasPhantom, setHasPhantom] = useState(false);
 
   useEffect(() => {
-    setHasInjected(isMetaMaskAvailable());
+    setHasMetaMask(isMetaMaskAvailable());
+    setHasPhantom(isPhantomAvailable());
   }, []);
 
   async function loadActivity() {
@@ -83,8 +92,9 @@ export function Wallet() {
   }, [token]);
 
   async function linkToAccount() {
-    const addr = useWalletStore.getState().address;
-    const prov = useWalletStore.getState().provider;
+    const state = useWalletStore.getState();
+    const addr = state.address;
+    const prov = state.provider;
     if (!token || !addr) {
       setError('Need Telegram session + connected wallet');
       return;
@@ -111,8 +121,23 @@ export function Wallet() {
           token,
         );
         setMessage(res.linked ? 'MetaMask linked with signature ✓' : 'Already linked');
+      } else if (prov === 'phantom') {
+        const msg = buildSolanaLinkMessage(addr);
+        const signature = await signPhantomMessage(msg);
+        const res = await apiPost<{ success: boolean; linked: boolean }>(
+          '/api/v1/wallets/connect',
+          {
+            address: addr,
+            chainType: 'SOLANA',
+            provider: 'phantom',
+            message: msg,
+            signature,
+            label: 'Phantom',
+          },
+          token,
+        );
+        setMessage(res.linked ? 'Phantom linked with signature ✓' : 'Already linked');
       } else {
-        // Demo path (dev only on API)
         const res = await apiPost<{ success: boolean; linked: boolean }>(
           '/api/v1/wallets/connect',
           {
@@ -160,12 +185,12 @@ export function Wallet() {
           {!isConnected ? (
             <Card padded>
               <p style={{ marginBottom: 12, color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>
-                Connect MetaMask (recommended) or use a demo wallet for testing.
+                Connect MetaMask (EVM), Phantom (Solana), or demo for testing.
               </p>
               <div style={{ display: 'grid', gap: 8 }}>
                 <Button
                   fullWidth
-                  disabled={!hasInjected}
+                  disabled={!hasMetaMask}
                   onClick={() => {
                     setError(null);
                     void connectMetaMask().catch((e) =>
@@ -173,11 +198,24 @@ export function Wallet() {
                     );
                   }}
                 >
-                  {hasInjected ? 'Connect MetaMask' : 'MetaMask not detected'}
+                  {hasMetaMask ? 'Connect MetaMask' : 'MetaMask not detected'}
                 </Button>
                 <Button
                   fullWidth
                   variant="secondary"
+                  disabled={!hasPhantom}
+                  onClick={() => {
+                    setError(null);
+                    void connectPhantom().catch((e) =>
+                      setError(e instanceof Error ? e.message : 'Phantom failed'),
+                    );
+                  }}
+                >
+                  {hasPhantom ? 'Connect Phantom' : 'Phantom not detected'}
+                </Button>
+                <Button
+                  fullWidth
+                  variant="outline"
                   onClick={() => {
                     setError(null);
                     void connectDemo();
@@ -186,9 +224,9 @@ export function Wallet() {
                   Connect demo wallet
                 </Button>
               </div>
-              {!hasInjected && (
+              {!hasMetaMask && !hasPhantom && (
                 <p style={{ marginTop: 10, fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
-                  In Telegram, open from a wallet in-app browser or use demo mode.
+                  Inside Telegram, wallet extensions are often unavailable — use demo mode.
                 </p>
               )}
             </Card>
@@ -198,10 +236,13 @@ export function Wallet() {
                 <div>
                   <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Connected</div>
                   <code style={{ fontSize: 13 }}>
-                    {address?.slice(0, 8)}…{address?.slice(-6)}
+                    {address && address.length > 16
+                      ? `${address.slice(0, 8)}…${address.slice(-6)}`
+                      : address}
                   </code>
-                  <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
                     <Badge variant="success">{provider ?? 'wallet'}</Badge>
+                    {chainType && <Badge variant="neutral">{chainType}</Badge>}
                     {chainId != null && <Badge variant="neutral">chain {chainId}</Badge>}
                   </div>
                 </div>
@@ -214,7 +255,7 @@ export function Wallet() {
                   <Button fullWidth disabled={linking} onClick={() => void linkToAccount()}>
                     {linking
                       ? 'Signing…'
-                      : provider === 'metamask'
+                      : provider === 'metamask' || provider === 'phantom'
                         ? 'Sign & link to account'
                         : 'Link demo to account'}
                   </Button>
