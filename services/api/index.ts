@@ -31,6 +31,15 @@ import { notificationsRoutes } from './routes/notifications.routes';
 
 registerInfrastructureHealthChecks();
 
+function resolveCorsOrigin(): boolean | string[] {
+  const raw = (process.env.CORS_ALLOWED_ORIGINS ?? '').trim();
+  if (!raw || raw === '*') {
+    // Dev / Telegram WebView: allow any origin
+    return true;
+  }
+  return raw.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
 async function buildServer() {
   const app = Fastify({
     logger:
@@ -39,9 +48,12 @@ async function buildServer() {
         : { level: process.env.LOG_LEVEL ?? 'debug', transport: { target: 'pino-pretty' } },
   });
 
-  await app.register(helmet);
+  await app.register(helmet, {
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+  });
   await app.register(cors, {
-    origin: (process.env.CORS_ALLOWED_ORIGINS ?? '').split(',').filter(Boolean),
+    origin: resolveCorsOrigin(),
     credentials: true,
   });
   await app.register(registerRateLimit);
