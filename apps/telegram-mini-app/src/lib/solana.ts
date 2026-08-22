@@ -1,6 +1,8 @@
 /**
- * Phantom / Solana injected wallet helpers (no @solana/web3.js required for connect+sign).
+ * Phantom / Solana injected wallet helpers.
  */
+
+import { VersionedTransaction } from '@solana/web3.js';
 
 export interface PhantomProvider {
   isPhantom?: boolean;
@@ -11,6 +13,11 @@ export interface PhantomProvider {
     message: Uint8Array,
     display?: 'utf8' | 'hex',
   ) => Promise<{ signature: Uint8Array; publicKey: { toString: () => string } }>;
+  signAndSendTransaction: (
+    transaction: VersionedTransaction,
+    opts?: { skipPreflight?: boolean },
+  ) => Promise<{ signature: string }>;
+  signTransaction?: (transaction: VersionedTransaction) => Promise<VersionedTransaction>;
 }
 
 function bytesToBase58(bytes: Uint8Array): string {
@@ -36,6 +43,13 @@ function bytesToBase58(bytes: Uint8Array): string {
   for (let i = 0; i < zeros; i++) str += '1';
   for (let i = digits.length - 1; i >= 0; i--) str += ALPHABET[digits[i]];
   return str;
+}
+
+function base64ToUint8Array(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
 }
 
 export function getPhantom(): PhantomProvider | null {
@@ -68,6 +82,26 @@ export async function signPhantomMessage(message: string): Promise<string> {
   const encoded = new TextEncoder().encode(message);
   const { signature } = await provider.signMessage(encoded, 'utf8');
   return bytesToBase58(signature);
+}
+
+/**
+ * Jupiter returns { swapTransaction: base64 } — deserialize VersionedTransaction and send via Phantom.
+ */
+export async function signAndSendJupiterSwap(built: unknown): Promise<string> {
+  const provider = getPhantom();
+  if (!provider?.signAndSendTransaction) {
+    throw new Error('Phantom signAndSendTransaction not available');
+  }
+
+  const payload = built as { swapTransaction?: string; transaction?: string };
+  const b64 = payload.swapTransaction || payload.transaction;
+  if (!b64 || typeof b64 !== 'string') {
+    throw new Error('No swapTransaction base64 in Jupiter build payload');
+  }
+
+  const tx = VersionedTransaction.deserialize(base64ToUint8Array(b64));
+  const { signature } = await provider.signAndSendTransaction(tx, { skipPreflight: false });
+  return signature;
 }
 
 export function buildSolanaLinkMessage(address: string): string {

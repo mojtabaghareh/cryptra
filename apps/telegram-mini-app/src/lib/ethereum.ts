@@ -1,6 +1,5 @@
 /**
  * Lightweight EVM helpers for Telegram Mini App (MetaMask / injected providers).
- * No ethers dependency required in the mini-app bundle.
  */
 
 export interface EthereumProvider {
@@ -46,10 +45,6 @@ export async function connectMetaMask(): Promise<{
   };
 }
 
-/**
- * EIP-191 personal_sign — message is the UTF-8 string, not hashed by us.
- * Wallet hashes with Ethereum signed message prefix.
- */
 export async function personalSign(address: string, message: string): Promise<string> {
   const eth = getEthereum();
   if (!eth) throw new Error('No injected wallet');
@@ -70,4 +65,47 @@ export function buildLinkMessage(address: string): string {
     `Timestamp: ${ts}`,
     'Only sign this message on cryptra.app / official Mini App.',
   ].join('\n');
+}
+
+/**
+ * 1inch swap build typically returns { tx: { from, to, data, value, gas, gasPrice } }
+ */
+export async function sendOneInchTransaction(built: unknown, fromAddress: string): Promise<string> {
+  const eth = getEthereum();
+  if (!eth) throw new Error('No injected wallet');
+
+  const root = built as {
+    tx?: {
+      from?: string;
+      to?: string;
+      data?: string;
+      value?: string;
+      gas?: string | number;
+      gasPrice?: string;
+    };
+    to?: string;
+    data?: string;
+    value?: string;
+  };
+
+  const tx = root.tx ?? root;
+  if (!tx.to || !tx.data) {
+    throw new Error('1inch build missing tx.to / tx.data');
+  }
+
+  const hash = (await eth.request({
+    method: 'eth_sendTransaction',
+    params: [
+      {
+        from: fromAddress,
+        to: tx.to,
+        data: tx.data,
+        value: tx.value ?? '0x0',
+        ...(tx.gas != null ? { gas: typeof tx.gas === 'number' ? '0x' + tx.gas.toString(16) : tx.gas } : {}),
+        ...(tx.gasPrice ? { gasPrice: tx.gasPrice } : {}),
+      },
+    ],
+  })) as string;
+
+  return hash;
 }

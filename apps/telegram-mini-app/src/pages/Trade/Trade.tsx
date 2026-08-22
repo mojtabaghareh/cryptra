@@ -9,6 +9,8 @@ import {
   placeOrder,
   type SwapQuoteResult,
 } from '../../lib/api';
+import { signAndSendJupiterSwap } from '../../lib/solana';
+import { sendOneInchTransaction } from '../../lib/ethereum';
 
 const PAIRS = [
   {
@@ -48,6 +50,7 @@ const inputStyle: CSSProperties = {
 export function Trade() {
   const isConnected = useWalletStore((s) => s.isConnected);
   const walletAddress = useWalletStore((s) => s.address);
+  const walletProvider = useWalletStore((s) => s.provider);
   const connect = useWalletStore((s) => s.connect);
   const token = useSessionStore((s) => s.token);
 
@@ -120,9 +123,45 @@ export function Trade() {
         userAddress: walletAddress,
       });
       setBuiltTx(res.data.transaction);
-      setMessage(`Transaction built (${res.data.protocol}). Sign in wallet, then paste tx hash.`);
+      setMessage(`Transaction built (${res.data.protocol}). You can Sign & send or paste hash.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Build failed');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSignAndSend() {
+    if (!builtTx || !walletAddress) {
+      setError('Build a transaction first');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      let hash: string;
+      const protocol = quote?.protocol?.toLowerCase() ?? '';
+
+      if (protocol.includes('jupiter') || pair.fromChain === 'solana') {
+        if (walletProvider !== 'phantom') {
+          setError('Connect Phantom for Solana swaps');
+          setLoading(false);
+          return;
+        }
+        hash = await signAndSendJupiterSwap(builtTx);
+      } else {
+        if (walletProvider !== 'metamask') {
+          setError('Connect MetaMask for EVM swaps');
+          setLoading(false);
+          return;
+        }
+        hash = await sendOneInchTransaction(builtTx, walletAddress);
+      }
+
+      setTxHash(hash);
+      setMessage(`Broadcast ✓ ${hash.slice(0, 16)}… — now Execute to record on Cryptra`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Sign/send failed');
     } finally {
       setLoading(false);
     }
@@ -184,7 +223,7 @@ export function Trade() {
     <div style={{ padding: 16 }}>
       <h1 style={{ fontSize: 22, fontWeight: 700 }}>Trade</h1>
       <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 16 }}>
-        Quote → Build tx → Sign in wallet → Execute with tx hash
+        Quote → Build → Sign & send → Execute
       </p>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
@@ -262,7 +301,7 @@ export function Trade() {
 
           {isConnected && walletAddress && (
             <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>
-              Signer: {walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}
+              Signer: {walletProvider} · {walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}
             </p>
           )}
 
@@ -289,29 +328,20 @@ export function Trade() {
                 </Button>
 
                 {builtTx != null && (
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: 'rgba(255,255,255,0.45)',
-                      maxHeight: 80,
-                      overflow: 'auto',
-                      wordBreak: 'break-all',
-                    }}
-                  >
-                    Tx payload ready ({typeof builtTx === 'object' ? 'object' : typeof builtTx}). Sign with
-                    Phantom/MetaMask, then paste hash below.
-                  </div>
+                  <Button fullWidth variant="primary" disabled={loading} onClick={() => void handleSignAndSend()}>
+                    {loading ? 'Waiting wallet…' : '3. Sign & send in wallet'}
+                  </Button>
                 )}
 
                 <input
                   value={txHash}
                   onChange={(e) => setTxHash(e.target.value)}
-                  placeholder="tx hash (optional but recommended)"
+                  placeholder="tx hash (auto-filled after sign)"
                   style={{ ...inputStyle, fontSize: 13, marginBottom: 0 }}
                 />
 
-                <Button fullWidth variant="primary" disabled={loading} onClick={() => void handleExecute()}>
-                  {loading ? 'Submitting…' : '3. Execute swap'}
+                <Button fullWidth variant="outline" disabled={loading} onClick={() => void handleExecute()}>
+                  {loading ? 'Submitting…' : '4. Record on Cryptra (Execute)'}
                 </Button>
               </div>
             </div>
