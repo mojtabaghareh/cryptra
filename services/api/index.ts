@@ -11,6 +11,7 @@ import {
   alertError,
 } from '@cryptra/monitoring';
 import { registerInfrastructureHealthChecks } from './health/register';
+import { startHealthWatchdog } from './health/watchdog';
 import { registerRateLimit } from './middleware/rateLimit';
 import { registerErrorHandler } from './middleware/errorHandler';
 import { userRoutes } from './routes/user.routes';
@@ -97,11 +98,28 @@ async function buildServer() {
   await app.register(notificationsRoutes, { prefix: '/api/v1/notifications' });
   await app.register(adminRoutes, { prefix: '/api/v1/admin' });
 
-  app.get('/health', async () => runHealthChecks());
-  app.get('/ready', async () => ({
-    status: 'ready',
-    timestamp: new Date().toISOString(),
-  }));
+  app.get('/health', async (_request, reply) => {
+    const report = await runHealthChecks();
+    const code =
+      report.status === 'unhealthy' ? 503 : report.status === 'degraded' ? 200 : 200;
+    return reply.code(code).send(report);
+  });
+
+  app.get('/ready', async (_request, reply) => {
+    const report = await runHealthChecks();
+    if (report.status === 'unhealthy') {
+      return reply.code(503).send({
+        status: 'not_ready',
+        timestamp: new Date().toISOString(),
+        checks: report.checks,
+      });
+    }
+    return {
+      status: 'ready',
+      timestamp: new Date().toISOString(),
+    };
+  });
+
   app.get('/metrics', async (_request, reply) => {
     const metrics = await getMetricsText();
     return reply.type('text/plain; version=0.0.4').send(metrics);
@@ -117,6 +135,7 @@ async function main() {
 
   try {
     await app.listen({ port, host });
+    startHealthWatchdog();
   } catch (error) {
     app.log.error(error);
     process.exit(1);
