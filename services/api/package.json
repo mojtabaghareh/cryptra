@@ -31,6 +31,7 @@
     "@cryptra/leaderboard": "workspace:*",
     "@cryptra/admin": "workspace:*",
     "@cryptra/achievements": "workspace:*",
+    "@cryptra/notifications": "workspace:*",
     "@cryptra/monitoring": "workspace:*",
     "@cryptra/service-users": "workspace:*",
     "@cryptra/service-wallets": "workspace:*",
