@@ -43,23 +43,7 @@ export async function walletRoutes(app: FastifyInstance) {
     return { success: true, data: wallets };
   });
 
-  /**
-   * GET /api/v1/wallets/:id/balance — native balance on-chain
-   */
-  app.get('/:id/balance', async (request) => {
-    const params = z.object({ id: z.string() }).parse(request.params);
-    const wallet = await walletRepository.findById(params.id);
-    if (!wallet || wallet.userId !== request.user!.userId) {
-      throw new AppError({ code: ErrorCodes.NOT_FOUND, message: 'Wallet not found' });
-    }
-
-    const balance = await getNativeBalance(wallet.chainType, wallet.address);
-    return { success: true, data: balance };
-  });
-
-  /**
-   * GET /api/v1/wallets/balances/all — all linked wallets with native balances
-   */
+  // Static path MUST be registered before /:id/*
   app.get('/balances/all', async (request) => {
     const wallets = await walletRepository.findByUserId(request.user!.userId);
     const balances = await Promise.all(
@@ -75,6 +59,17 @@ export async function walletRoutes(app: FastifyInstance) {
       }),
     );
     return { success: true, data: balances };
+  });
+
+  app.get('/:id/balance', async (request) => {
+    const params = z.object({ id: z.string() }).parse(request.params);
+    const wallet = await walletRepository.findById(params.id);
+    if (!wallet || wallet.userId !== request.user!.userId) {
+      throw new AppError({ code: ErrorCodes.NOT_FOUND, message: 'Wallet not found' });
+    }
+
+    const balance = await getNativeBalance(wallet.chainType, wallet.address);
+    return { success: true, data: balance };
   });
 
   app.post('/connect', async (request) => {
