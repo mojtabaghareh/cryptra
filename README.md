@@ -4,80 +4,60 @@
 > ما به کاربر کمک نمی‌کنیم ترید کند.  
 > ما به کاربر کمک می‌کنیم بفهمد چطور تصمیم می‌گیرد.
 
----
-
-### Cryptra چیست؟
-
-**Cryptra** یک صرافی، کیف‌پول یا ربات ترید نیست.
-
-Cryptra یک **لایه هوش مالی (Financial Intelligence Layer)** است که روی تمام پلتفرم‌های مالی قرار می‌گیرد و به کاربران کمک می‌کند:
-
-- کیفیت تصمیم‌های مالی خود را در طول زمان درک کنند
-- الگوهای رفتاری مخرب (FOMO، Panic Sell، Revenge Trade و ...) را شناسایی کنند
-- با گزارش‌های هفتگی (Weekly Reflection) عملکرد خود را بهبود دهند
-
-**ماموریت:**  
-*"We don’t help users trade. We help users understand how they decide."*
+**Stack:** Telegram Mini App + Bot · Fastify API · Prisma · Redis · Jupiter / 1inch / Hyperliquid
 
 ---
 
-### ویژگی‌های اصلی
-
-- اتصال کیف پول (MetaMask, Phantom, TON Connect, WalletConnect و ...)
-- داشبورد پورتفولیو لحظه‌ای
-- اجرای معامله (Swap / Perpetual) از طریق Hyperliquid, Jupiter, 1inch و ...
-- تحلیل رفتار کاربر (Reflection Engine)
-- گزارش هفتگی رفتاری
-- سیستم XP، سطح، دستاورد و پاداش
-- سیستم رفرال
-- پشتیبانی از چند زبان (i18n)
-- رابط کاربری به صورت **Telegram Mini App + Telegram Bot**
-
----
-
-### معماری پروژه (Monorepo)
+## شروع سریع
 
 ```bash
-cryptra/
-├── apps/                     # اپلیکیشن‌های نهایی
-│   ├── telegram-mini-app/    # فرانت اصلی (Telegram Mini App)
-│   ├── telegram-bot/         # ربات تلگرام
-│   └── admin-panel/          # پنل ادمین + مانیتورینگ
-│
-├── packages/                 # پکیج‌های مشترک
-│   ├── core/                 # هسته اصلی (Event Graph, Reflection)
-│   ├── wallets/              # اتصال کیف پول‌ها
-│   ├── ui/                   # کامپوننت‌های مشترک UI
-│   ├── i18n/                 # چندزبانگی
-│   ├── swap-engine/
-│   ├── perp-engine/
-│   ├── market-data/
-│   ├── xp/ · levels/ · achievements/ · rewards/
-│   ├── referral/
-│   └── ...
-│
-├── services/                 # سرویس‌های بکند
-│   ├── api/                  # API Gateway
-│   ├── users/
-│   ├── wallets/
-│   ├── portfolio/
-│   ├── swaps/
-│   ├── perpetuals/
-│   ├── analytics/
-│   └── ...
-│
-├── database/                 # Schema + Migrations + Seeds
-├── infrastructure/           # Docker, Nginx, PM2, Monitoring
-└── docs/                     # مستندات
-```
+git clone https://github.com/mojtabaghareh/cryptra.git
+cd cryptra
+cp .env.example .env
+# TELEGRAM_BOT_TOKEN + JWT_SECRET را پر کنید
 
-```bash
-# نصب وابستگی‌ها
+docker compose up -d          # Postgres + Redis
 pnpm install
+bash scripts/bootstrap-db.sh
 
-# اجرای تمام سرویس‌ها در حالت توسعه
-pnpm dev
-
-# فقط یک اپ خاص
-pnpm --filter telegram-mini-app dev
+pnpm dev:api      # :3000
+pnpm dev:bot
+pnpm dev:miniapp  # :5173
 ```
+
+ورود کاربر و Menu Button: **[GETTING_STARTED.md](./GETTING_STARTED.md)**  
+Deploy پروداکشن: **[DEPLOY.md](./DEPLOY.md)**
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+---
+
+## قابلیت‌های فعلی
+
+- Auth تلگرام (initData → JWT)
+- Wallet: MetaMask / Phantom / TON + موجودی on-chain
+- Swap: Quote → Build → Sign & send → Execute (Jupiter / 1inch)
+- Perps: ثبت با mid واقعی Hyperliquid
+- XP / Level / Referral / Achievements / Reflection / Leaderboard
+- Bot: `/start` + Menu Button Mini App
+
+---
+
+## ساختار
+
+```
+apps/telegram-mini-app   Mini App (Vite + React)
+apps/telegram-bot        Grammy bot
+services/api             Fastify /api/v1
+packages/*               domain packages
+docker-compose.yml       dev infra
+docker-compose.prod.yml  full stack
+```
+
+---
+
+## ماموریت
+
+*We don’t help users trade. We help users understand how they decide.*

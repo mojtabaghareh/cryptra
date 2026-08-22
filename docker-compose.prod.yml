@@ -1,0 +1,82 @@
+# Production-style stack: postgres + redis + api + bot + miniapp
+# Usage:
+#   cp .env.example .env   # fill secrets
+#   docker compose -f docker-compose.prod.yml up -d --build
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cryptra}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cryptra}
+      POSTGRES_DB: ${POSTGRES_DB:-cryptra}
+    volumes:
+      - cryptra_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cryptra}"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - cryptra_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-cryptra}:${POSTGRES_PASSWORD:-cryptra}@postgres:5432/${POSTGRES_DB:-cryptra}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-3000}:3000"
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-cryptra}:${POSTGRES_PASSWORD:-cryptra}@postgres:5432/${POSTGRES_DB:-cryptra}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - api
+      - postgres
+
+  miniapp:
+    build:
+      context: .
+      dockerfile: Dockerfile.miniapp
+      args:
+        # Empty = same-origin /api via nginx proxy
+        VITE_API_URL: ""
+    restart: unless-stopped
+    ports:
+      - "${MINIAPP_PORT:-8080}:80"
+    depends_on:
+      - api
+
+volumes:
+  cryptra_pg:
+  cryptra_redis:

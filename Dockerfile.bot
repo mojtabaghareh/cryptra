@@ -1,0 +1,16 @@
+# Cryptra Telegram Bot
+FROM node:20-alpine AS base
+RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
+WORKDIR /app
+
+FROM base AS deps
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* turbo.json* ./
+COPY packages ./packages
+COPY services ./services
+COPY apps ./apps
+RUN pnpm install --no-frozen-lockfile
+
+FROM deps AS runner
+ENV NODE_ENV=production
+WORKDIR /app
+CMD ["pnpm", "--filter", "@cryptra/telegram-bot", "exec", "tsx", "src/index.ts"]
