@@ -1,38 +1,29 @@
 {
-  "name": "@cryptra/core",
+  "name": "cryptra",
   "version": "0.1.0",
   "private": true,
-  "description": "Cryptra Core Domain — shared Types, Constants, Errors and Validators used across every app, package and service in the Cryptra workspace.",
-  "license": "UNLICENSED",
-  "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
-  "sideEffects": false,
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
-    }
-  },
+  "description": "Cryptra monorepo — Telegram Mini App + Bot + API",
+  "packageManager": "pnpm@9.12.0",
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
-    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts",
-    "clean": "rimraf dist"
-  },
-  "dependencies": {
-    "ethers": "^6.13.4",
-    "@solana/web3.js": "^1.95.4",
-    "zod": "^3.23.8"
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "db:generate": "pnpm --filter @cryptra/database db:generate",
+    "db:push": "pnpm --filter @cryptra/database db:push",
+    "db:seed": "pnpm --filter @cryptra/database db:seed",
+    "dev:api": "pnpm --filter @cryptra/service-api dev",
+    "dev:bot": "pnpm --filter @cryptra/telegram-bot dev",
+    "dev:workers": "pnpm --filter @cryptra/workers dev",
+    "dev:miniapp": "pnpm --filter @cryptra/telegram-mini-app dev"
   },
   "devDependencies": {
-    "typescript": "^5.5.4",
-    "tsup": "^8.3.5",
-    "rimraf": "^6.0.1"
+    "turbo": "^2.3.0",
+    "typescript": "^5.5.4"
   },
   "engines": {
-    "node": ">=18.18.0"
+    "node": ">=18.18.0",
+    "pnpm": ">=9.0.0"
   }
 }
