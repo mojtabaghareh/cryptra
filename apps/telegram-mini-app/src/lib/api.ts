@@ -98,6 +98,62 @@ export async function fetchPortfolioMe(token: string) {
   return apiGet<{ success: boolean; data: unknown }>('/api/v1/portfolio/me', token);
 }
 
-export async function fetchReferralStats(token: string) {
-  return apiGet<{ success: boolean; data: unknown }>('/api/v1/referral/stats', token);
+export interface SwapQuoteResult {
+  quoteId: string;
+  fromToken: string;
+  toToken: string;
+  fromAmount: string;
+  toAmount: string;
+  fromChain: string;
+  toChain: string;
+  protocol: string;
+  feePercent: number;
+  feeAmount: string;
+  priceImpactBps?: number;
+  estimatedGas?: string;
+  expiresAt: string;
+}
+
+export async function requestSwapQuote(
+  token: string,
+  body: {
+    fromToken: string;
+    toToken: string;
+    fromAmount: string;
+    fromChain: string;
+    toChain: string;
+    slippageBps?: number;
+  },
+) {
+  return apiPost<{ success: boolean; data: SwapQuoteResult }>(
+    '/api/v1/swaps/quote',
+    body,
+    token,
+  );
+}
+
+export async function executeSwap(
+  token: string,
+  body: { quoteId: string; txHash?: string },
+) {
+  return apiPost<{ success: boolean; data: { swapId: string; status: string; txHash?: string } }>(
+    '/api/v1/swaps/execute',
+    body,
+    token,
+  );
+}
+
+export async function placeOrder(
+  token: string,
+  body: {
+    protocol?: string;
+    symbol: string;
+    side: 'LONG' | 'SHORT';
+    type?: 'MARKET' | 'LIMIT';
+    size: string;
+    price?: string;
+    leverage?: number;
+  },
+) {
+  return apiPost<{ success: boolean; data: unknown }>('/api/v1/orders', body, token);
 }
