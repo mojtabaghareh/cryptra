@@ -38,6 +38,16 @@ interface LinkedWallet {
   label: string | null;
 }
 
+interface WalletBalance {
+  walletId: string;
+  address: string;
+  chainType: string;
+  isPrimary: boolean;
+  symbol: string;
+  balanceFormatted: string;
+  error?: string;
+}
+
 export function Wallet() {
   const isConnected = useWalletStore((s) => s.isConnected);
   const address = useWalletStore((s) => s.address);
@@ -53,6 +63,7 @@ export function Wallet() {
   const [swaps, setSwaps] = useState<SwapRow[]>([]);
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [linked, setLinked] = useState<LinkedWallet[]>([]);
+  const [balances, setBalances] = useState<WalletBalance[]>([]);
   const [loading, setLoading] = useState(false);
   const [linking, setLinking] = useState(false);
   const [tab, setTab] = useState<'wallet' | 'activity'>('wallet');
@@ -70,14 +81,18 @@ export function Wallet() {
     if (!token) return;
     setLoading(true);
     try {
-      const [s, o, w] = await Promise.all([
+      const [s, o, w, b] = await Promise.all([
         apiGet<{ success: boolean; data: SwapRow[] }>('/api/v1/swaps', token),
         apiGet<{ success: boolean; data: OrderRow[] }>('/api/v1/orders', token),
         apiGet<{ success: boolean; data: LinkedWallet[] }>('/api/v1/wallets', token),
+        apiGet<{ success: boolean; data: WalletBalance[] }>('/api/v1/wallets/balances/all', token).catch(
+          () => ({ success: false, data: [] as WalletBalance[] }),
+        ),
       ]);
       setSwaps(Array.isArray(s.data) ? s.data : []);
       setOrders(Array.isArray(o.data) ? o.data : []);
       setLinked(Array.isArray(w.data) ? w.data : []);
+      setBalances(Array.isArray(b.data) ? b.data : []);
     } catch {
       setSwaps([]);
       setOrders([]);
@@ -159,6 +174,8 @@ export function Wallet() {
     }
   }
 
+  const balByAddress = new Map(balances.map((b) => [b.address.toLowerCase(), b]));
+
   return (
     <div style={{ padding: 16 }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Wallet</h1>
@@ -224,11 +241,6 @@ export function Wallet() {
                   Connect demo wallet
                 </Button>
               </div>
-              {!hasMetaMask && !hasPhantom && (
-                <p style={{ marginTop: 10, fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
-                  Inside Telegram, wallet extensions are often unavailable — use demo mode.
-                </p>
-              )}
             </Card>
           ) : (
             <Card padded>
@@ -261,32 +273,45 @@ export function Wallet() {
                   </Button>
                 </div>
               )}
-              {!token && (
-                <p style={{ marginTop: 10, fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
-                  Open Mini App from Telegram to link wallet to your account.
-                </p>
-              )}
             </Card>
           )}
 
           {linked.length > 0 && (
             <div style={{ marginTop: 16 }}>
-              <h2 style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>
-                Linked on server
-              </h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <h2 style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', margin: 0 }}>
+                  Linked + balances
+                </h2>
+                <Button size="sm" variant="ghost" onClick={() => void loadActivity()}>
+                  Refresh
+                </Button>
+              </div>
               <div style={{ display: 'grid', gap: 8 }}>
-                {linked.map((w) => (
-                  <Card key={w.id} padded>
-                    <div style={{ fontWeight: 600, fontSize: 13 }}>
-                      {w.address.slice(0, 8)}…{w.address.slice(-6)}
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                      <Badge variant="neutral">{w.chainType}</Badge>
-                      <Badge variant="neutral">{w.provider}</Badge>
-                      {w.isPrimary && <Badge variant="success">Primary</Badge>}
-                    </div>
-                  </Card>
-                ))}
+                {linked.map((w) => {
+                  const bal = balByAddress.get(w.address.toLowerCase());
+                  return (
+                    <Card key={w.id} padded>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>
+                        {w.address.slice(0, 8)}…{w.address.slice(-6)}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                        <Badge variant="neutral">{w.chainType}</Badge>
+                        <Badge variant="neutral">{w.provider}</Badge>
+                        {w.isPrimary && <Badge variant="success">Primary</Badge>}
+                      </div>
+                      {bal && (
+                        <div style={{ marginTop: 8, fontSize: 14 }}>
+                          {bal.balanceFormatted} {bal.symbol}
+                          {bal.error && (
+                            <span style={{ marginLeft: 8, fontSize: 11, color: '#ff5252' }}>
+                              ({bal.error})
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
               </div>
             </div>
           )}
