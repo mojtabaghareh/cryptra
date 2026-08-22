@@ -26,6 +26,7 @@ import { leaderboardRoutes } from './routes/leaderboard.routes';
 import { ordersRoutes } from './routes/orders.routes';
 import { rewardsRoutes } from './routes/rewards.routes';
 import { adminRoutes } from './routes/admin.routes';
+import { notificationsRoutes } from './routes/notifications.routes';
 
 async function buildServer() {
   const app = Fastify({
@@ -83,6 +84,7 @@ async function buildServer() {
   await app.register(leaderboardRoutes, { prefix: '/api/v1/leaderboard' });
   await app.register(ordersRoutes, { prefix: '/api/v1/orders' });
   await app.register(rewardsRoutes, { prefix: '/api/v1/rewards' });
+  await app.register(notificationsRoutes, { prefix: '/api/v1/notifications' });
   await app.register(adminRoutes, { prefix: '/api/v1/admin' });
 
   app.get('/health', async () => runHealthChecks());
