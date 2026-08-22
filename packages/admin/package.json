@@ -1,0 +1,28 @@
+{
+  "name": "@cryptra/admin",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@cryptra/core": "workspace:*",
+    "@cryptra/database": "workspace:*",
+    "@cryptra/xp": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "tsup": "^8.3.5"
+  }
+}
