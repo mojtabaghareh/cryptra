@@ -1,31 +1,33 @@
-# Cryptra reverse proxy with automatic HTTPS (Let's Encrypt)
+# Cryptra production — cryptraa.ir
+# DNS A @ → 5.75.205.142 (Hetzner)
 #
-# Usage with docker-compose.caddy.yml:
-#   export DOMAIN=app.yourdomain.com
-#   export EMAIL=you@yourdomain.com
-#   docker compose -f docker-compose.prod.yml -f docker-compose.caddy.yml up -d
-#
-# For local HTTP-only testing without real domain, use :80 block below.
+# Override if needed:
+#   DOMAIN=cryptraa.ir EMAIL=you@mail.com docker compose -f docker-compose.prod.yml -f docker-compose.caddy.yml up -d
 
 {
-	email {$EMAIL:admin@localhost}
+	email {$EMAIL:admin@cryptraa.ir}
 }
 
-{$DOMAIN:localhost} {
+cryptraa.ir, www.cryptraa.ir {
 	encode gzip
 
-	# Mini App (static + SPA)
-	handle {
-		reverse_proxy miniapp:80
-	}
-
-	# Explicit API path (nginx inside miniapp also proxies /api — either works)
-	handle_path /api/* {
+	# API + health on the same host (Telegram Mini App same-origin)
+	handle /api/* {
 		reverse_proxy api:3000
 	}
-
 	handle /health {
 		reverse_proxy api:3000
+	}
+	handle /ready {
+		reverse_proxy api:3000
+	}
+	handle /metrics {
+		reverse_proxy api:3000
+	}
+
+	# Mini App SPA
+	handle {
+		reverse_proxy miniapp:80
 	}
 
 	header {

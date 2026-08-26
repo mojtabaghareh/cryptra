@@ -1,12 +1,7 @@
-# Overlay: public HTTPS via Caddy in front of prod stack
+# HTTPS edge for cryptraa.ir → 5.75.205.142
 #
-# Prerequisites:
-#   - DNS A/AAAA for $DOMAIN → your server IP
-#   - Ports 80 + 443 open
-#
-# Example:
-#   DOMAIN=app.example.com EMAIL=ops@example.com \
-#     docker compose -f docker-compose.prod.yml -f docker-compose.caddy.yml up -d
+#   export EMAIL=your@email.com
+#   docker compose -f docker-compose.prod.yml -f docker-compose.caddy.yml up -d --build
 
 services:
   caddy:
@@ -17,8 +12,8 @@ services:
       - "443:443"
       - "443:443/udp"
     environment:
-      DOMAIN: ${DOMAIN:-localhost}
-      EMAIL: ${EMAIL:-admin@localhost}
+      DOMAIN: ${DOMAIN:-cryptraa.ir}
+      EMAIL: ${EMAIL:-admin@cryptraa.ir}
     volumes:
       - ./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -27,7 +22,6 @@ services:
       - miniapp
       - api
 
-  # Do not expose miniapp/api publicly when Caddy is the edge
   miniapp:
     ports: !reset []
 
