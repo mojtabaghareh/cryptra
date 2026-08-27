@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import path from 'path';
+import { fileURLToPath, URL } from 'node:url';
 
 const API_TARGET = process.env.VITE_API_PROXY || 'http://localhost:3000';
 
@@ -8,22 +8,15 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
   server: {
     port: 5173,
     host: true,
-    // Same-origin /api in dev → no CORS pain for Telegram WebView testing via tunnel
     proxy: {
-      '/api': {
-        target: API_TARGET,
-        changeOrigin: true,
-      },
-      '/health': {
-        target: API_TARGET,
-        changeOrigin: true,
-      },
+      '/api': { target: API_TARGET, changeOrigin: true },
+      '/health': { target: API_TARGET, changeOrigin: true },
     },
   },
   preview: {
@@ -32,6 +25,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: false,
+    chunkSizeWarningLimit: 1500,
   },
 });
