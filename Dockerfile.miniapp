@@ -1,28 +1,21 @@
-# Cryptra Mini App — static nginx
+# Cryptra Mini App — standalone Vite build + nginx
+# Avoids monorepo/pnpm issues on small VPS builds
 FROM node:20-alpine AS build
-RUN apk add --no-cache libc6-compat \
-  && corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /app
-
 ENV NODE_OPTIONS=--max-old-space-size=2048
 
-COPY package.json pnpm-workspace.yaml tsconfig.base.json ./
-COPY packages ./packages
-COPY apps/telegram-mini-app ./apps/telegram-mini-app
+COPY apps/telegram-mini-app/package.json apps/telegram-mini-app/package-lock.json* ./
+RUN npm install --legacy-peer-deps
 
-RUN mkdir -p apps/telegram-bot services/api \
-  && printf '%s\n' '{"name":"@cryptra/telegram-bot","private":true}' > apps/telegram-bot/package.json \
-  && printf '%s\n' '{"name":"@cryptra/service-api","private":true}' > services/api/package.json
+COPY apps/telegram-mini-app/ ./
 
 ARG VITE_API_URL=
 ENV VITE_API_URL=$VITE_API_URL
 
-WORKDIR /app/apps/telegram-mini-app
-RUN pnpm install --no-frozen-lockfile \
-  && pnpm exec vite build
+RUN npx vite build
 
 FROM nginx:1.27-alpine
 COPY infrastructure/nginx/miniapp.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/apps/telegram-mini-app/dist /usr/share/nginx/html
+COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
