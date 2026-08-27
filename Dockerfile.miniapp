@@ -6,7 +6,7 @@ WORKDIR /app
 
 ENV NODE_OPTIONS=--max-old-space-size=2048
 
-COPY package.json pnpm-workspace.yaml ./
+COPY package.json pnpm-workspace.yaml tsconfig.base.json ./
 COPY packages ./packages
 COPY apps/telegram-mini-app ./apps/telegram-mini-app
 
