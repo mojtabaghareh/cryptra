@@ -7,9 +7,11 @@ WORKDIR /app
 COPY package.json pnpm-workspace.yaml ./
 COPY packages ./packages
 COPY apps/telegram-mini-app ./apps/telegram-mini-app
-RUN mkdir -p apps/telegram-bot services \
-  && echo '{"name":"@cryptra/telegram-bot","private":true}' > apps/telegram-bot/package.json \
-  && echo '{"name":"@cryptra/service-api","private":true}' > services/api/package.json
+
+# Workspace stubs so pnpm does not fail on missing packages
+RUN mkdir -p apps/telegram-bot services/api \
+  && printf '%s\n' '{"name":"@cryptra/telegram-bot","private":true}' > apps/telegram-bot/package.json \
+  && printf '%s\n' '{"name":"@cryptra/service-api","private":true}' > services/api/package.json
 
 ARG VITE_API_URL=
 ENV VITE_API_URL=$VITE_API_URL
