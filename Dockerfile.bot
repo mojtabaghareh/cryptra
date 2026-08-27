@@ -1,17 +1,21 @@
 # Cryptra Telegram Bot
 FROM node:20-alpine AS base
-RUN apk add --no-cache libc6-compat python3 make g++ \
+RUN apk add --no-cache libc6-compat python3 make g++ openssl \
   && corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /app
 
 FROM base AS deps
-COPY package.json pnpm-workspace.yaml ./
+COPY package.json pnpm-workspace.yaml tsconfig.base.json ./
 COPY packages ./packages
 COPY services ./services
 COPY apps/telegram-bot ./apps/telegram-bot
-# Stub other apps so workspace globs do not fail
-RUN mkdir -p apps/telegram-mini-app && echo '{"name":"@cryptra/telegram-mini-app","private":true}' > apps/telegram-mini-app/package.json
-RUN pnpm install --no-frozen-lockfile
+RUN mkdir -p apps/telegram-mini-app \
+  && printf '%s\n' '{"name":"@cryptra/telegram-mini-app","private":true}' > apps/telegram-mini-app/package.json
+
+RUN pnpm install --no-frozen-lockfile \
+  && pnpm add -w -D tsup typescript tsx \
+  && pnpm --filter "./packages/**" --if-present build \
+  && (pnpm --filter @cryptra/database exec prisma generate || true)
 
 FROM deps AS runner
 ENV NODE_ENV=production
