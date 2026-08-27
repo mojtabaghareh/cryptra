@@ -1,2 +1,5 @@
-// Deprecated: use telegram.tsx (JSX). This stub re-exports for any old imports.
-export * from './telegram.tsx';
+export {
+  TelegramProvider,
+  useTelegram,
+} from './telegram.tsx';
+export type { TelegramWebApp } from './telegram.tsx';
