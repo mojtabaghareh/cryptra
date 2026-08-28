@@ -1,4 +1,4 @@
-# Cryptra API — production image
+# Cryptra API — production image (tsx loads TypeScript sources)
 FROM node:20-alpine AS base
 RUN apk add --no-cache libc6-compat python3 make g++ openssl wget \
   && corepack enable && corepack prepare pnpm@9.12.0 --activate
@@ -12,9 +12,38 @@ COPY apps/telegram-bot/package.json ./apps/telegram-bot/package.json
 RUN mkdir -p apps/telegram-mini-app \
   && printf '%s\n' '{"name":"@cryptra/telegram-mini-app","private":true}' > apps/telegram-mini-app/package.json
 
+# Point workspace packages at TS entry so tsx resolves without dist/
+RUN node <<'NODE'
+const fs = require('fs');
+const path = require('path');
+function walk(d) {
+  if (!fs.existsSync(d)) return;
+  for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+    const p = path.join(d, e.name);
+    if (e.isDirectory() && e.name !== 'node_modules' && e.name !== 'dist') walk(p);
+    else if (e.name === 'package.json') {
+      let j;
+      try { j = JSON.parse(fs.readFileSync(p, 'utf8')); } catch { continue; }
+      if (!j.name || !String(j.name).startsWith('@cryptra/')) continue;
+      const dir = path.dirname(p);
+      let entry = null;
+      if (fs.existsSync(path.join(dir, 'src/index.ts'))) entry = './src/index.ts';
+      else if (fs.existsSync(path.join(dir, 'index.ts'))) entry = './index.ts';
+      if (!entry) continue;
+      j.main = entry;
+      j.module = entry;
+      j.types = entry;
+      j.exports = { '.': { types: entry, import: entry, require: entry, default: entry } };
+      fs.writeFileSync(p, JSON.stringify(j, null, 2) + '\n');
+    }
+  }
+}
+walk('packages');
+walk('services');
+NODE
+
 RUN pnpm install --no-frozen-lockfile \
-  && pnpm add -w -D tsup typescript tsx \
-  && pnpm --filter "./packages/**" --if-present build \
+  && pnpm add -w -D tsx typescript \
   && (pnpm --filter @cryptra/database exec prisma generate || true)
 
 FROM deps AS runner

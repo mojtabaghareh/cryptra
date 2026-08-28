@@ -2,24 +2,23 @@
   "name": "@cryptra/core",
   "version": "0.1.0",
   "private": true,
-  "description": "Cryptra Core Domain — shared Types, Constants, Errors and Validators used across every app, package and service in the Cryptra workspace.",
+  "description": "Cryptra Core Domain — shared Types, Constants, Errors and Validators",
   "license": "UNLICENSED",
-  "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
+  "main": "./index.ts",
+  "types": "./index.ts",
   "sideEffects": false,
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
+      "types": "./index.ts",
+      "import": "./index.ts",
+      "require": "./index.ts",
+      "default": "./index.ts"
     }
   },
   "scripts": {
     "build": "tsup index.ts --format cjs,esm --dts --clean",
-    "dev": "tsup index.ts --format cjs,esm --dts --watch",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint . --ext .ts",
+    "test": "vitest run --passWithNoTests",
     "clean": "rimraf dist"
   },
   "dependencies": {
@@ -30,6 +29,7 @@
   "devDependencies": {
     "typescript": "^5.5.4",
     "tsup": "^8.3.5",
+    "vitest": "^2.1.0",
     "rimraf": "^6.0.1"
   },
   "engines": {
