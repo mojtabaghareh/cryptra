@@ -8,7 +8,10 @@ import {
 
 describe('walletValidator', () => {
   it('accepts valid EVM address', () => {
-    expect(isValidEvmAddress('0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0')).toBe(true);
+    // lowercase is always accepted by ethers.isAddress
+    expect(isValidEvmAddress('0x742d35cc6634c0532925a3b844bc9e7595f0beb0')).toBe(true);
+    // known checksummed address (vitalik.eth)
+    expect(isValidEvmAddress('0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045')).toBe(true);
   });
 
   it('rejects invalid EVM address', () => {
@@ -17,7 +20,6 @@ describe('walletValidator', () => {
   });
 
   it('accepts valid Solana address', () => {
-    // System program id
     expect(isValidSolanaAddress('11111111111111111111111111111111')).toBe(true);
   });
 
@@ -26,8 +28,7 @@ describe('walletValidator', () => {
   });
 
   it('accepts TON raw format', () => {
-    const raw =
-      '0:' + 'a'.repeat(64);
+    const raw = '0:' + 'a'.repeat(64);
     expect(isValidTonAddress(raw)).toBe(true);
   });
 
