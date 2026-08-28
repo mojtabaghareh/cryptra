@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import jwt from 'jsonwebtoken';
-import { createHmac, createHash } from 'node:crypto';
+import { createHmac, createHash, timingSafeEqual } from 'node:crypto';
 import { verifyMessage as verifyEvmMessage } from 'ethers';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
@@ -51,7 +51,6 @@ export function verifySessionToken(token: string): SessionUser {
     }
     const payload = decoded as Record<string, unknown>;
 
-    // Support both auth package tokens (sub) and session tokens (userId)
     const userId =
       typeof payload.userId === 'string'
         ? payload.userId
@@ -73,6 +72,17 @@ export function verifySessionToken(token: string): SessionUser {
       message: 'Invalid or expired session token.',
       cause: error,
     });
+  }
+}
+
+function safeEqualHex(a: string, b: string): boolean {
+  try {
+    const ba = Buffer.from(a, 'hex');
+    const bb = Buffer.from(b, 'hex');
+    if (ba.length !== bb.length) return false;
+    return timingSafeEqual(ba, bb);
+  } catch {
+    return false;
   }
 }
 
@@ -101,7 +111,7 @@ export function verifyTelegramInitData(initData: string, maxAgeSeconds = 86_400)
   const secretKey = createHmac('sha256', 'WebAppData').update(botToken).digest();
   const computedHash = createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
 
-  if (computedHash !== hash) {
+  if (!safeEqualHex(computedHash, hash)) {
     throw new AppError({ code: ErrorCodes.UNAUTHORIZED, message: 'Telegram initData signature is invalid.' });
   }
 

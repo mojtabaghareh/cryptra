@@ -11,3 +11,10 @@ export type { CircuitState, CircuitBreakerOptions } from './circuit-breaker';
 
 export { hasRole, requireRole, can, Permissions } from './rbac';
 export type { Role, Permission } from './rbac';
+
+export {
+  claimIdempotencyKey,
+  completeIdempotencyKey,
+  releaseIdempotencyKey,
+} from './idempotency';
+export type { IdempotencyClaim } from './idempotency';

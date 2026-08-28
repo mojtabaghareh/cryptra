@@ -4,6 +4,11 @@ import { swapService, jupiterAdapter, oneInchAdapter } from '@cryptra/swap-engin
 import { requireAuth } from '../middleware/auth';
 import { AppError, ErrorCodes } from '@cryptra/core';
 import { prisma } from '@cryptra/database';
+import {
+  claimIdempotencyKey,
+  completeIdempotencyKey,
+  releaseIdempotencyKey,
+} from '@cryptra/security';
 
 swapService.registerAdapter(jupiterAdapter);
 swapService.registerAdapter(oneInchAdapter);
@@ -80,7 +85,6 @@ export async function swapRoutes(app: FastifyInstance) {
         userAddress: body.data.userAddress,
       });
     } else if (protocol === '1inch' || protocol === 'oneinch') {
-      // 1inch needs full swap params, not just stored quote
       built = await oneInchAdapter.buildTransaction!({
         quote: swap.route,
         userAddress: body.data.userAddress,
@@ -113,6 +117,7 @@ export async function swapRoutes(app: FastifyInstance) {
       .object({
         quoteId: z.string().min(1),
         txHash: z.string().optional(),
+        idempotencyKey: z.string().min(8).max(128).optional(),
       })
       .safeParse(request.body);
 
@@ -123,8 +128,50 @@ export async function swapRoutes(app: FastifyInstance) {
       });
     }
 
+    const userId = request.user!.userId;
+    const scope = `swap:execute:${userId}`;
+    const idemKey = body.data.idempotencyKey;
+
+    if (idemKey) {
+      const claim = await claimIdempotencyKey(scope, idemKey);
+      if (claim.status === 'replay') {
+        try {
+          return JSON.parse(claim.body) as { success: boolean; data: unknown };
+        } catch {
+          throw new AppError({
+            code: ErrorCodes.CONFLICT,
+            message: 'Duplicate request (idempotency replay)',
+          });
+        }
+      }
+      if (claim.status === 'in_progress') {
+        throw new AppError({
+          code: ErrorCodes.CONFLICT,
+          message: 'Request already in progress',
+        });
+      }
+
+      try {
+        const result = await swapService.execute({
+          userId,
+          quoteId: body.data.quoteId,
+          txHash: body.data.txHash,
+        });
+        const payload = { success: true as const, data: result };
+        if (claim.status === 'acquired') {
+          await completeIdempotencyKey(scope, idemKey, JSON.stringify(payload));
+        }
+        return payload;
+      } catch (err) {
+        if (claim.status === 'acquired') {
+          await releaseIdempotencyKey(scope, idemKey);
+        }
+        throw err;
+      }
+    }
+
     const result = await swapService.execute({
-      userId: request.user!.userId,
+      userId,
       quoteId: body.data.quoteId,
       txHash: body.data.txHash,
     });
