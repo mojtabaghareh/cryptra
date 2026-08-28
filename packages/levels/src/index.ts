@@ -7,3 +7,4 @@ export {
   LEVEL_THRESHOLDS,
 } from './service';
 export type { SyncLevelResult } from './service';
+export { estimateLiquidationPrice } from './liquidation';

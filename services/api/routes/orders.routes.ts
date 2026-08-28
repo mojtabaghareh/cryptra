@@ -7,6 +7,11 @@ import { xpEngine } from '@cryptra/xp';
 import { achievementService } from '@cryptra/achievements';
 import { referralService } from '@cryptra/referral';
 import { hyperliquidClient, placeMarketOrder, isAgentConfigured } from '@cryptra/hyperliquid';
+import {
+  claimIdempotencyKey,
+  completeIdempotencyKey,
+  releaseIdempotencyKey,
+} from '@cryptra/security';
 
 const placeOrderSchema = z.object({
   protocol: z.string().default('hyperliquid'),
@@ -17,6 +22,7 @@ const placeOrderSchema = z.object({
   price: z.string().optional(),
   stopPrice: z.string().optional(),
   leverage: z.number().int().min(1).max(50).default(1),
+  idempotencyKey: z.string().min(8).max(128).optional(),
 });
 
 export async function ordersRoutes(app: FastifyInstance) {
@@ -62,115 +68,147 @@ export async function ordersRoutes(app: FastifyInstance) {
 
     const data = body.data;
     const userId = request.user!.userId;
+    const scope = `order:place:${userId}`;
+    const idemKey = data.idempotencyKey;
 
-    let fillPrice = data.price;
-    let hlMeta: { source: string; mid?: number; agent?: string } | null = null;
-    let agentResult: Awaited<ReturnType<typeof placeMarketOrder>> | null = null;
-
-    if (data.protocol === 'hyperliquid' && data.type === 'MARKET') {
-      try {
-        agentResult = await placeMarketOrder({
-          symbol: data.symbol,
-          isBuy: data.side === 'LONG',
-          size: data.size,
-          leverage: data.leverage,
-        });
-        if (agentResult.mid != null) {
-          fillPrice = String(agentResult.mid);
-        }
-        hlMeta = {
-          source: agentResult.mode,
-          mid: agentResult.mid,
-          agent: isAgentConfigured() ? 'configured' : 'off',
-        };
-      } catch (err) {
-        console.warn('[orders] HL path failed, continuing without', err);
+    if (idemKey) {
+      const claim = await claimIdempotencyKey(scope, idemKey);
+      if (claim.status === 'replay') {
         try {
-          const mid = await hyperliquidClient.getMid(data.symbol.toUpperCase());
-          if (mid != null) {
-            fillPrice = String(mid);
-            hlMeta = { source: 'hyperliquid_mid', mid };
-          }
+          return JSON.parse(claim.body);
         } catch {
-          /* ignore */
+          throw new AppError({ code: ErrorCodes.CONFLICT, message: 'Duplicate order request' });
         }
+      }
+      if (claim.status === 'in_progress') {
+        throw new AppError({ code: ErrorCodes.CONFLICT, message: 'Order already in progress' });
+      }
+
+      try {
+        const payload = await placeOrderCore(userId, data);
+        if (claim.status === 'acquired') {
+          await completeIdempotencyKey(scope, idemKey, JSON.stringify(payload));
+        }
+        return payload;
+      } catch (e) {
+        if (claim.status === 'acquired') await releaseIdempotencyKey(scope, idemKey);
+        throw e;
       }
     }
 
-    const order = await prisma.order.create({
+    return placeOrderCore(userId, data);
+  });
+}
+
+async function placeOrderCore(
+  userId: string,
+  data: z.infer<typeof placeOrderSchema>,
+) {
+  let fillPrice = data.price;
+  let hlMeta: { source: string; mid?: number; agent?: string } | null = null;
+  let agentResult: Awaited<ReturnType<typeof placeMarketOrder>> | null = null;
+
+  if (data.protocol === 'hyperliquid' && data.type === 'MARKET') {
+    try {
+      agentResult = await placeMarketOrder({
+        symbol: data.symbol,
+        isBuy: data.side === 'LONG',
+        size: data.size,
+        leverage: data.leverage,
+      });
+      if (agentResult.mid != null) {
+        fillPrice = String(agentResult.mid);
+      }
+      hlMeta = {
+        source: agentResult.mode,
+        mid: agentResult.mid,
+        agent: isAgentConfigured() ? 'configured' : 'off',
+      };
+    } catch {
+      try {
+        const mid = await hyperliquidClient.getMid(data.symbol.toUpperCase());
+        if (mid != null) {
+          fillPrice = String(mid);
+          hlMeta = { source: 'hyperliquid_mid', mid };
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  const order = await prisma.order.create({
+    data: {
+      userId,
+      protocol: data.protocol,
+      symbol: data.symbol.toUpperCase(),
+      side: data.side,
+      type: data.type,
+      size: data.size,
+      price: fillPrice ?? data.price,
+      stopPrice: data.stopPrice,
+      leverage: data.leverage,
+      status: 'OPEN',
+    },
+  });
+
+  let position = null;
+  if (data.type === 'MARKET') {
+    position = await prisma.position.create({
       data: {
         userId,
+        orderId: order.id,
         protocol: data.protocol,
         symbol: data.symbol.toUpperCase(),
         side: data.side,
-        type: data.type,
         size: data.size,
-        price: fillPrice ?? data.price,
-        stopPrice: data.stopPrice,
+        entryPrice: fillPrice ?? data.price ?? '0',
         leverage: data.leverage,
         status: 'OPEN',
       },
     });
 
-    let position = null;
-    if (data.type === 'MARKET') {
-      position = await prisma.position.create({
-        data: {
-          userId,
-          orderId: order.id,
-          protocol: data.protocol,
-          symbol: data.symbol.toUpperCase(),
-          side: data.side,
-          size: data.size,
-          entryPrice: fillPrice ?? data.price ?? '0',
-          leverage: data.leverage,
-          status: 'OPEN',
-        },
-      });
-
-      await prisma.order.update({
-        where: { id: order.id },
-        data: {
-          status: 'FILLED',
-          filledSize: data.size,
-          avgFillPrice: fillPrice ?? data.price ?? '0',
-        },
-      });
-    }
-
-    try {
-      await xpEngine.award({
-        userId,
-        source: 'TRADE',
-        amount: 40,
-        description: `${data.side} ${data.symbol}`,
-        metadata: { orderId: order.id, fillPrice, hlMode: agentResult?.mode },
-      });
-      await achievementService.tryUnlock(userId, 'FIRST_TRADE');
-      await referralService.activate(userId);
-    } catch (err) {
-      console.error('[orders] post-trade side effects failed', err);
-    }
-
-    return {
-      success: true,
+    await prisma.order.update({
+      where: { id: order.id },
       data: {
-        order: { ...order, avgFillPrice: fillPrice },
-        position,
-        market: hlMeta,
-        agent: agentResult
-          ? {
-              mode: agentResult.mode,
-              executed: agentResult.executed,
-              message: agentResult.message,
-            }
-          : null,
-        note:
-          data.protocol === 'hyperliquid'
-            ? agentResult?.message ??
-              'Filled at HL mid for tracking.'
-            : undefined,
+        status: 'FILLED',
+        filledSize: data.size,
+        avgFillPrice: fillPrice ?? data.price ?? '0',
       },
-    };
-  });
+    });
+  }
+
+  try {
+    await xpEngine.award({
+      userId,
+      source: 'TRADE',
+      amount: 40,
+      description: `${data.side} ${data.symbol}`,
+      metadata: { orderId: order.id, fillPrice, hlMode: agentResult?.mode },
+    });
+    await achievementService.tryUnlock(userId, 'FIRST_TRADE');
+    await referralService.activate(userId);
+  } catch {
+    // side effects must not fail the order response
+  }
+
+  return {
+    success: true as const,
+    data: {
+      order: { ...order, avgFillPrice: fillPrice },
+      position,
+      market: hlMeta,
+      agent: agentResult
+        ? {
+            mode: agentResult.mode,
+            executed: agentResult.executed,
+            message: agentResult.message,
+          }
+        : null,
+      note:
+        data.protocol === 'hyperliquid'
+          ? agentResult?.message ?? 'Filled at HL mid for tracking.'
+          : undefined,
+    },
+  };
 }

@@ -6,6 +6,7 @@ const WEAK = [
   'your_telegram_bot_token',
   'change-me',
   'secret',
+  'your-admin-api-key',
 ];
 
 export function assertProductionSecurity(): void {
@@ -26,6 +27,10 @@ export function assertProductionSecurity(): void {
 
   if (!process.env.DATABASE_URL) {
     errors.push('DATABASE_URL required');
+  }
+
+  if (!process.env.REDIS_URL) {
+    errors.push('REDIS_URL recommended for rate-limit/idempotency (set redis://redis:6379 in compose)');
   }
 
   if (errors.length > 0) {

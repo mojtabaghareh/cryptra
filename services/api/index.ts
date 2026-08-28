@@ -38,10 +38,13 @@ registerInfrastructureHealthChecks();
 
 function resolveCorsOrigin(): boolean | string[] {
   const raw = (process.env.CORS_ALLOWED_ORIGINS ?? '').trim();
-  if (!raw || raw === '*') {
-    if (process.env.NODE_ENV === 'production') {
-      console.warn('[cors] CORS_ALLOWED_ORIGINS empty in production — allowing all (set explicit origin)');
+  if (process.env.NODE_ENV === 'production') {
+    if (!raw || raw === '*') {
+      // Safe default for cryptraa production — never reflect * with credentials blindly
+      return ['https://cryptraa.ir', 'https://www.cryptraa.ir'];
     }
+  }
+  if (!raw || raw === '*') {
     return true;
   }
   return raw.split(',').map((s) => s.trim()).filter(Boolean);
