@@ -1,8 +1,5 @@
 /**
  * Hyperliquid public info API client.
- * Live order signing requires agent wallet keys — not stored on server by default.
- * This client enriches quotes/fills with real mid prices and meta.
- *
  * Docs: https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint
  */
 
@@ -43,10 +40,10 @@ export class HyperliquidClient {
     return res.json();
   }
 
-  /** All perp universe + asset contexts */
   async getMetaAndAssetCtxs(): Promise<{
     universe: HlAssetMeta[];
     mids: Record<string, number>;
+    assetCtxs: unknown[];
   }> {
     const data = (await this.postInfo({ type: 'metaAndAssetCtxs' })) as [
       { universe: Array<{ name: string; szDecimals: number; maxLeverage: number }> },
@@ -66,7 +63,7 @@ export class HyperliquidClient {
       if (px) mids[universe[i].name] = Number(px);
     }
 
-    return { universe, mids };
+    return { universe, mids, assetCtxs: ctxs };
   }
 
   async getAllMids(): Promise<Record<string, string>> {
@@ -76,7 +73,6 @@ export class HyperliquidClient {
 
   async getMid(symbol: string): Promise<number | null> {
     const mids = await this.getAllMids();
-    // HL uses coin names like BTC, ETH
     const raw = mids[symbol] ?? mids[symbol.toUpperCase()];
     if (raw == null) return null;
     const n = Number(raw);
@@ -89,6 +85,28 @@ export class HyperliquidClient {
     return symbols
       .filter((s) => mids[s] != null)
       .map((s) => ({ symbol: s, mid: Number(mids[s]) }));
+  }
+
+  /** Account state for an address (positions, margin) — public info endpoint */
+  async getClearinghouseState(userAddress: string): Promise<unknown> {
+    return this.postInfo({
+      type: 'clearinghouseState',
+      user: userAddress,
+    });
+  }
+
+  async getOpenOrders(userAddress: string): Promise<unknown> {
+    return this.postInfo({
+      type: 'openOrders',
+      user: userAddress,
+    });
+  }
+
+  async getUserFills(userAddress: string): Promise<unknown> {
+    return this.postInfo({
+      type: 'userFills',
+      user: userAddress,
+    });
   }
 }
 

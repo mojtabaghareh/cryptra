@@ -1,4 +1,5 @@
 export {
   validateTelegramWebAppInitData,
   parseTelegramUser,
-} from './src/auth';
+  type TelegramWebAppUser,
+} from './auth';
