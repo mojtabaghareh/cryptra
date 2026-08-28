@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { calculateLevel, progressToNextLevel, LEVEL_THRESHOLDS } from './service';
+import { calculateLevel, progressToNextLevel, LEVEL_THRESHOLDS } from './pure';
 
-describe('levels', () => {
+describe('levels pure math', () => {
   it('level 1 at 0 xp', () => {
     expect(calculateLevel(0)).toBe(1);
   });
