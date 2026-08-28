@@ -29,6 +29,9 @@ import { ordersRoutes } from './routes/orders.routes';
 import { rewardsRoutes } from './routes/rewards.routes';
 import { adminRoutes } from './routes/admin.routes';
 import { notificationsRoutes } from './routes/notifications.routes';
+import { feeRoutes } from './routes/fee.routes';
+import { activityRoutes } from './routes/activity.routes';
+import { perpRoutes } from './routes/perp.routes';
 
 assertProductionSecurity();
 registerInfrastructureHealthChecks();
@@ -104,6 +107,9 @@ async function buildServer() {
   await app.register(rewardsRoutes, { prefix: '/api/v1/rewards' });
   await app.register(notificationsRoutes, { prefix: '/api/v1/notifications' });
   await app.register(adminRoutes, { prefix: '/api/v1/admin' });
+  await app.register(feeRoutes, { prefix: '/api/v1/fees' });
+  await app.register(activityRoutes, { prefix: '/api/v1/activity' });
+  await app.register(perpRoutes, { prefix: '/api/v1/perps' });
 
   app.get('/health', async (_request, reply) => {
     const report = await runHealthChecks();
