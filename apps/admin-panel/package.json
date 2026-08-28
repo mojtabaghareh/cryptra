@@ -1,1 +1,12 @@
-
+{
+  "name": "@cryptra/admin-panel",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "echo 'admin-panel scaffold — not required for miniapp/bot/api'",
+    "build": "echo 'admin-panel scaffold'",
+    "typecheck": "echo 'skip'",
+    "test": "echo 'no tests yet'"
+  }
+}
