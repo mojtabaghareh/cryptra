@@ -7,78 +7,49 @@
     @apply border-cryptra-border;
   }
 
+  html,
   body {
     @apply bg-cryptra-background text-cryptra-foreground antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    background-image: radial-gradient(ellipse at top, rgba(30, 64, 175, 0.28), transparent 55%);
+    background-attachment: fixed;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
 
-  [dir="rtl"] {
-    text-align: right;
-  }
-
-  [dir="rtl"] .rtl-flip {
-    transform: scaleX(-1);
-  }
-
   ::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
+    width: 3px;
+    height: 3px;
   }
-
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(59, 130, 246, 0.4);
     border-radius: 2px;
   }
+}
 
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+@layer components {
+  .cx-card {
+    @apply rounded-2xl border border-blue-500/20 bg-[#12122a]/90 backdrop-blur;
+  }
+  .cx-btn-primary {
+    @apply rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold shadow-neon-blue;
+  }
+  .cx-positive {
+    @apply text-emerald-400;
+  }
+  .cx-negative {
+    @apply text-red-400;
   }
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  .pb-safe {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   }
-
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-
-  .glass {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
   .gradient-text {
-    background: linear-gradient(135deg, #00f0ff, #b026ff);
+    background: linear-gradient(135deg, #22d3ee, #3b82f6);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
-
-  .neon-glow-blue {
-    box-shadow: 0 0 5px #00f0ff, 0 0 20px rgba(0, 240, 255, 0.3);
-  }
-
-  .neon-glow-pink {
-    box-shadow: 0 0 5px #ff00ff, 0 0 20px rgba(255, 0, 255, 0.3);
-  }
-
-  .neon-glow-green {
-    box-shadow: 0 0 5px #39ff14, 0 0 20px rgba(57, 255, 20, 0.3);
-  }
 }
-
