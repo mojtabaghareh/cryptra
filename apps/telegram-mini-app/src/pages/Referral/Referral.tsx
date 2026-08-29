@@ -17,8 +17,7 @@ export function Referral() {
   const { user: tgUser } = useTelegram();
 
   const [code, setCode] = useState(
-    sessionUser?.referralCode ||
-      (tgUser ? `CRY${String(tgUser.id).slice(-6)}` : 'LOGIN'),
+    sessionUser?.referralCode || (tgUser ? `CRY${String(tgUser.id).slice(-6)}` : 'LOGIN'),
   );
   const [stats, setStats] = useState<ReferralStats | null>(null);
   const [list, setList] = useState<unknown[]>([]);
@@ -36,7 +35,6 @@ export function Referral() {
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
-
     async function load() {
       setLoading(true);
       try {
@@ -57,7 +55,6 @@ export function Referral() {
         if (!cancelled) setLoading(false);
       }
     }
-
     void load();
     return () => {
       cancelled = true;
@@ -78,56 +75,43 @@ export function Referral() {
   }
 
   return (
-    <div style={{ padding: 16 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700 }}>Referral</h1>
-      <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 16 }}>
-        Invite friends. When they trade, you earn XP.
-      </p>
+    <div className="px-4 pb-6 space-y-4">
+      <div>
+        <h1 className="text-xl font-bold">Referral</h1>
+        <p className="text-xs text-white/45 mt-0.5">Invite friends · earn XP</p>
+      </div>
 
-      <Card padded>
-        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Your code</div>
-        <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: 2, margin: '8px 0' }}>{code}</div>
-        <div style={{ fontSize: 12, wordBreak: 'break-all', color: 'rgba(255,255,255,0.6)' }}>
-          {link}
-        </div>
-        <div style={{ marginTop: 12 }}>
-          <Button
-            fullWidth
-            onClick={() => {
-              void navigator.clipboard?.writeText(link);
-              setMessage('Link copied');
-            }}
-          >
-            Copy link
-          </Button>
-        </div>
+      <Card padded className="border-cyan-500/20 text-center">
+        <div className="text-xs text-white/50">Your code</div>
+        <div className="text-3xl font-bold tracking-widest my-2 gradient-text">{code}</div>
+        <p className="text-[11px] text-white/45 break-all mb-3">{link}</p>
+        <Button
+          fullWidth
+          onClick={() => {
+            void navigator.clipboard?.writeText(link);
+            setMessage('Link copied');
+          }}
+        >
+          Copy link
+        </Button>
       </Card>
 
       {loading && <Skeleton height={40} />}
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+      <div className="flex gap-2 flex-wrap">
         <Badge variant="neutral">Total {stats?.total ?? '—'}</Badge>
         <Badge variant="success">Active {stats?.active ?? '—'}</Badge>
         <Badge variant="neutral">Pending {stats?.pending ?? '—'}</Badge>
-        <Badge variant={token ? 'success' : 'neutral'}>{token ? 'Synced' : 'Local'}</Badge>
       </div>
 
       {token && (
-        <Card padded>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Have a code?</div>
+        <Card padded className="space-y-2">
+          <div className="text-sm font-semibold">Have a code?</div>
           <input
             value={applyCode}
             onChange={(e) => setApplyCode(e.target.value)}
             placeholder="Enter referral code"
-            style={{
-              width: '100%',
-              padding: '10px 12px',
-              borderRadius: 12,
-              border: '1px solid rgba(255,255,255,0.1)',
-              background: 'rgba(0,0,0,0.3)',
-              color: 'white',
-              marginBottom: 8,
-            }}
+            className="w-full rounded-xl bg-black/30 border border-blue-500/20 px-3 py-2.5 text-sm text-white"
           />
           <Button fullWidth variant="secondary" onClick={() => void handleApply()}>
             Apply code
@@ -136,13 +120,10 @@ export function Referral() {
       )}
 
       {list.length > 0 && (
-        <p style={{ marginTop: 12, fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
-          {list.length} referral record(s) on file
-        </p>
+        <p className="text-xs text-white/40">{list.length} referral record(s)</p>
       )}
-
-      {message && <p style={{ marginTop: 12, fontSize: 13, color: '#00c853' }}>{message}</p>}
-      {error && <p style={{ marginTop: 12, fontSize: 13, color: '#ff5252' }}>{error}</p>}
+      {message && <p className="text-sm text-emerald-400">{message}</p>}
+      {error && <p className="text-sm text-red-400">{error}</p>}
     </div>
   );
 }
