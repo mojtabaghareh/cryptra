@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { Card, Button, Skeleton, Badge, PriceDisplay, AssetIcon } from '../../lib/ui';
-import { useTranslation } from '../../lib/i18n';
+import { Card, Button, Badge, PriceDisplay, Sparkline } from '../../lib/ui';
 import { useWalletStore } from '../../store/walletStore';
 import { useSessionStore } from '../../store/sessionStore';
 import { apiGet } from '../../lib/api';
-import styles from './Home.module.css';
 
 interface PortfolioData {
   totalValueUsd: number;
@@ -14,20 +12,23 @@ interface PortfolioData {
   assets: Array<{ symbol: string; chain?: string; balance: string }>;
 }
 
-const QUICK_ACTIONS = [
-  { id: 'swap', labelKey: 'home.action.swap', icon: 'swap', path: '/trade', variant: 'primary' as const },
-  { id: 'send', labelKey: 'home.action.send', icon: 'send', path: '/wallet', variant: 'secondary' as const },
-  { id: 'receive', labelKey: 'home.action.receive', icon: 'receive', path: '/wallet', variant: 'outline' as const },
-  { id: 'buy', labelKey: 'home.action.buy', icon: 'buy', path: '/markets', variant: 'outline' as const },
+const DEMO_COINS = [
+  { symbol: 'BTC', name: 'Bitcoin', price: 68432, change: 1.26 },
+  { symbol: 'ETH', name: 'Ethereum', price: 3254, change: 2.14 },
+  { symbol: 'TON', name: 'Toncoin', price: 5.42, change: 3.67 },
 ];
 
+const ACTIONS = [
+  { id: 'buy', label: 'Buy', emoji: '➕', path: '/markets' },
+  { id: 'sell', label: 'Sell', emoji: '➖', path: '/trade' },
+  { id: 'swap', label: 'Swap', emoji: '🔄', path: '/trade' },
+  { id: 'send', label: 'Send', emoji: '📤', path: '/wallet' },
+] as const;
+
 export function Home(): JSX.Element {
-  const { t } = useTranslation();
   const navigate = useNavigate();
   const isConnected = useWalletStore((s) => s.isConnected);
-  const address = useWalletStore((s) => s.address);
   const connect = useWalletStore((s) => s.connect);
-  const disconnect = useWalletStore((s) => s.disconnect);
   const token = useSessionStore((s) => s.token);
   const sessionUser = useSessionStore((s) => s.user);
 
@@ -58,118 +59,118 @@ export function Home(): JSX.Element {
     void fetchPortfolio();
   }, [fetchPortfolio]);
 
+  const balance = portfolio?.totalValueUsd ?? (token || isConnected ? 0 : 10000);
+  const showDemo = !token && !isConnected;
+
   return (
-    <div className={styles.container}>
-      <header className={styles.header}>
-        <div className={styles.headerContent}>
-          <h1 className={styles.title}>{t('home.title')}</h1>
-          <p className={styles.subtitle}>{t('home.subtitle')}</p>
-        </div>
-        <Badge variant={token ? 'success' : isConnected ? 'success' : 'neutral'} size="sm">
-          {token ? 'Session' : isConnected ? t('wallet.status.connected') : t('wallet.status.disconnected')}
-        </Badge>
-      </header>
-
-      {sessionUser && (
-        <section style={{ marginBottom: 12 }}>
-          <Card padded>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              <span style={{ fontWeight: 600 }}>
-                {sessionUser.firstName || sessionUser.username || 'Trader'}
-              </span>
-              <Badge variant="success">L{sessionUser.level}</Badge>
-              <Badge variant="neutral">{sessionUser.xp} XP</Badge>
-            </div>
-          </Card>
-        </section>
-      )}
-
-      <section className={styles.portfolioSection}>
-        <Card className={styles.portfolioCard} padded>
-          {isLoading ? (
-            <div className={styles.skeletonWrapper}>
-              <Skeleton width="60%" height={32} />
-              <Skeleton width="40%" height={20} />
-            </div>
-          ) : portfolio ? (
-            <div className={styles.portfolioContent}>
-              <div className={styles.portfolioHeader}>
-                <span className={styles.portfolioLabel}>{t('home.portfolio.totalBalance')}</span>
-              </div>
-              <PriceDisplay value={portfolio.totalValueUsd} currency="USD" className={styles.balanceAmount} />
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', marginTop: 8 }}>
-                {portfolio.openPositions} open positions · {portfolio.recentSwaps} swaps (7d)
-              </p>
-              {portfolio.assets.length > 0 && (
-                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
-                  {portfolio.assets.length} linked wallet(s)
-                </p>
-              )}
-            </div>
-          ) : !token && !isConnected ? (
-            <div className={styles.connectPrompt}>
-              <AssetIcon name="wallet" size={48} className={styles.connectIcon} />
-              <p className={styles.connectText}>{t('home.connectPrompt')}</p>
-              <Button variant="primary" size="lg" onClick={() => void connect()} fullWidth>
-                {t('wallet.action.connect')}
-              </Button>
-              <p style={{ marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
-                Or open from Telegram for full session portfolio
-              </p>
-            </div>
-          ) : (
-            <div className={styles.errorState}>
-              <p>{token ? t('home.portfolio.error') : 'Connect wallet or open in Telegram'}</p>
-              <Button variant="outline" size="sm" onClick={() => void fetchPortfolio()}>
-                {t('common.retry')}
-              </Button>
-            </div>
-          )}
-        </Card>
+    <div className="px-4 pb-4 space-y-5">
+      {/* Hero */}
+      <section className="pt-1">
+        <h1 className="text-2xl font-bold leading-tight">
+          Trade Smarter.
+          <br />
+          <span className="gradient-text">Grow Faster.</span>
+        </h1>
+        {sessionUser && (
+          <p className="mt-1 text-sm text-cyan-200/60">
+            Hi {sessionUser.firstName || sessionUser.username || 'Trader'} · L
+            {sessionUser.level} · {sessionUser.xp} XP
+          </p>
+        )}
       </section>
 
-      {isConnected && address && (
-        <section className={styles.walletStatusSection}>
-          <Card className={styles.walletCard} padded>
-            <div className={styles.walletInfo}>
-              <AssetIcon name="wallet" size={24} />
-              <div className={styles.walletDetails}>
-                <span className={styles.walletLabel}>{t('home.wallet.address')}</span>
-                <code className={styles.walletAddress}>
-                  {address.slice(0, 6)}...{address.slice(-4)}
-                </code>
-              </div>
+      {/* Balance card */}
+      <Card padded className="relative overflow-hidden border-cyan-500/20">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/15 via-transparent to-cyan-500/10 pointer-events-none" />
+        <div className="relative">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-xs text-white/50 mb-1">Total Balance</div>
+              {isLoading ? (
+                <div className="h-9 w-36 animate-pulse rounded bg-white/10" />
+              ) : (
+                <PriceDisplay value={balance} className="text-[28px]" />
+              )}
+              <div className="mt-1 text-sm text-emerald-400 font-medium">+5.6% Today</div>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => disconnect()}>
-              {t('wallet.action.disconnect')}
-            </Button>
-          </Card>
-        </section>
-      )}
+            <Sparkline positive />
+          </div>
 
-      <section className={styles.actionsSection}>
-        <h2 className={styles.sectionTitle}>{t('home.quickActions.title')}</h2>
-        <div className={styles.actionsGrid}>
-          {QUICK_ACTIONS.map((action) => (
-            <Button
-              key={action.id}
-              variant={action.variant}
-              size="lg"
-              className={styles.actionButton}
-              onClick={() => navigate({ to: action.path })}
-            >
-              <AssetIcon name={action.icon} size={20} />
-              <span>{t(action.labelKey)}</span>
+          {!token && !isConnected && (
+            <p className="mt-3 text-[11px] text-white/35">Demo balance · connect or open in Telegram</p>
+          )}
+
+          {!isConnected && !token && (
+            <Button className="mt-4" fullWidth onClick={() => void connect()}>
+              Connect wallet
             </Button>
+          )}
+        </div>
+      </Card>
+
+      {/* Quick actions */}
+      <section>
+        <div className="grid grid-cols-4 gap-2">
+          {ACTIONS.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => navigate({ to: a.path })}
+              className="flex flex-col items-center gap-1.5 py-3 rounded-2xl bg-[#12122a] border border-blue-500/15 hover:border-cyan-400/40 transition"
+            >
+              <span className="text-lg">{a.emoji}</span>
+              <span className="text-[11px] text-white/70 font-medium">{a.label}</span>
+            </button>
           ))}
         </div>
       </section>
 
-      <section style={{ marginTop: 16, display: 'grid', gap: 8 }}>
-        <Button fullWidth variant="outline" onClick={() => navigate({ to: '/reflection' })}>
-          Weekly Reflection
+      {/* Top coins */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold text-sm">Top Coins</h2>
+          <button
+            type="button"
+            className="text-xs text-cyan-400"
+            onClick={() => navigate({ to: '/markets' })}
+          >
+            View All
+          </button>
+        </div>
+        <div className="space-y-2">
+          {DEMO_COINS.map((c) => (
+            <button
+              key={c.symbol}
+              type="button"
+              onClick={() => navigate({ to: '/markets' })}
+              className="w-full flex items-center gap-3 p-3 rounded-2xl bg-[#12122a]/90 border border-blue-500/10 text-left"
+            >
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/30 to-cyan-500/20 flex items-center justify-center text-xs font-bold">
+                {c.symbol.slice(0, 1)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-sm">{c.name}</div>
+                <div className="text-xs text-white/40">{c.symbol}</div>
+              </div>
+              <div className="text-right">
+                <div className="font-semibold text-sm">
+                  ${c.price.toLocaleString()}
+                </div>
+                <div className="text-xs text-emerald-400">+{c.change}%</div>
+              </div>
+            </button>
+          ))}
+        </div>
+        {showDemo && (
+          <p className="mt-2 text-[10px] text-white/30 text-center">Sample market data for UI preview</p>
+        )}
+      </section>
+
+      <section className="grid gap-2">
+        <Button variant="outline" fullWidth onClick={() => navigate({ to: '/rewards' })}>
+          XP & Rewards
         </Button>
-        <Button fullWidth variant="ghost" onClick={() => navigate({ to: '/status' })}>
+        <Button variant="ghost" fullWidth onClick={() => navigate({ to: '/status' })}>
           System status
         </Button>
       </section>
