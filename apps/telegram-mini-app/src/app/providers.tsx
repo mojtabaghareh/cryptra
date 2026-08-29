@@ -6,15 +6,19 @@ import { SessionBootstrap } from './SessionBootstrap';
 
 initI18n();
 
+/**
+ * Order matters:
+ * TelegramProvider must wrap ThemeProvider because ThemeProvider calls useTelegram().
+ */
 export const Providers: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <I18nProvider>
-      <ThemeProvider>
-        <TelegramProvider>
+      <TelegramProvider>
+        <ThemeProvider>
           <SessionBootstrap />
           {children}
-        </TelegramProvider>
-      </ThemeProvider>
+        </ThemeProvider>
+      </TelegramProvider>
     </I18nProvider>
   );
 };
