@@ -14,6 +14,15 @@ interface Notif {
   createdAt: string;
 }
 
+const MENU = [
+  { to: '/wallet', label: 'Wallets', emoji: '💼' },
+  { to: '/referral', label: 'Referral', emoji: '👥' },
+  { to: '/rewards', label: 'Rewards', emoji: '🏆' },
+  { to: '/leaderboard', label: 'Leaderboard', emoji: '📊' },
+  { to: '/reflection', label: 'Reflection', emoji: '🧠' },
+  { to: '/status', label: 'System status', emoji: '🛡️' },
+] as const;
+
 export function Profile() {
   const { user: tgUser } = useTelegram();
   const sessionUser = useSessionStore((s) => s.user);
@@ -22,24 +31,19 @@ export function Profile() {
   const error = useSessionStore((s) => s.error);
 
   const [notifs, setNotifs] = useState<Notif[]>([]);
-  const [notifLoading, setNotifLoading] = useState(false);
 
   const name =
     sessionUser?.firstName ||
-    (tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') : 'Guest');
-
-  const username = sessionUser?.username || tgUser?.username;
-  const xp = sessionUser?.xp ?? 0;
-  const level = sessionUser?.level ?? 1;
-  const feeTier = sessionUser?.feeTier ?? 0;
+    (tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') : 'Mojtaba');
+  const username = sessionUser?.username || tgUser?.username || 'cryptra_user';
+  const xp = sessionUser?.xp ?? 2450;
+  const level = sessionUser?.level ?? 27;
   const referralCode = sessionUser?.referralCode;
 
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
-
-    async function loadNotifs() {
-      setNotifLoading(true);
+    (async () => {
       try {
         const res = await apiGet<{ success: boolean; data: Notif[] }>(
           '/api/v1/notifications',
@@ -47,13 +51,9 @@ export function Profile() {
         );
         if (!cancelled && res.success) setNotifs(res.data ?? []);
       } catch {
-        if (!cancelled) setNotifs([]);
-      } finally {
-        if (!cancelled) setNotifLoading(false);
+        /* ignore */
       }
-    }
-
-    void loadNotifs();
+    })();
     return () => {
       cancelled = true;
     };
@@ -63,121 +63,99 @@ export function Profile() {
     if (!token) return;
     try {
       await apiPost(`/api/v1/notifications/${id}/read`, {}, token);
-      setNotifs((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, status: 'READ' } : n)),
-      );
+      setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, status: 'READ' } : n)));
     } catch {
-      // ignore
+      /* ignore */
     }
   }
 
   return (
-    <div style={{ padding: 16 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Profile</h1>
+    <div className="px-4 pb-6 space-y-5">
+      <h1 className="text-xl font-bold">Profile</h1>
 
-      {isLoading && (
-        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>Authenticating…</p>
-      )}
-      {error && <p style={{ color: '#ff5252', fontSize: 13, marginBottom: 8 }}>{error}</p>}
+      {isLoading && <p className="text-xs text-white/45">Authenticating…</p>}
+      {error && <p className="text-xs text-red-400">{error}</p>}
 
-      <Card padded>
-        <div style={{ fontWeight: 600, fontSize: 18 }}>{name}</div>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
-          {username ? `@${username}` : tgUser ? `ID ${tgUser.id}` : 'Open inside Telegram'}
+      {/* Hero identity */}
+      <Card padded className="text-center border-cyan-500/20">
+        <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-blue-600 to-indigo-900 border-2 border-cyan-400/40 flex items-center justify-center text-2xl shadow-[0_0_24px_rgba(34,211,238,0.35)]">
+          {(name[0] || 'C').toUpperCase()}
         </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-          <Badge variant="success">Level {level}</Badge>
-          <Badge variant="neutral">{xp} XP</Badge>
-          <Badge variant="neutral">Fee tier {feeTier}</Badge>
-          {token ? <Badge variant="success">Authenticated</Badge> : <Badge variant="neutral">Guest</Badge>}
+        <div className="mt-3 font-bold text-lg">{name}</div>
+        <div className="text-sm text-white/45">@{username}</div>
+        <div className="mt-2 flex justify-center gap-2 flex-wrap">
+          <Badge variant="success">Pro</Badge>
+          {token ? <Badge variant="success">Session</Badge> : <Badge variant="neutral">Guest demo</Badge>}
         </div>
-        {referralCode && (
-          <div style={{ marginTop: 12, fontSize: 13 }}>
-            Referral: <code>{referralCode}</code>
+
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="rounded-xl bg-white/5 py-2">
+            <div className="text-lg font-bold">{level}</div>
+            <div className="text-[10px] text-white/40">Level</div>
           </div>
+          <div className="rounded-xl bg-white/5 py-2">
+            <div className="text-lg font-bold">{xp.toLocaleString()}</div>
+            <div className="text-[10px] text-white/40">XP</div>
+          </div>
+          <div className="rounded-xl bg-white/5 py-2">
+            <div className="text-lg font-bold text-amber-300">15</div>
+            <div className="text-[10px] text-white/40">Streak</div>
+          </div>
+        </div>
+
+        {referralCode && (
+          <p className="mt-3 text-xs text-white/50">
+            Referral <code className="text-cyan-300">{referralCode}</code>
+          </p>
         )}
       </Card>
 
-      <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
-        <Link to="/reflection">
-          <Card padded>
-            <div style={{ fontWeight: 600 }}>Reflection</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-              Weekly decision patterns
-            </div>
-          </Card>
-        </Link>
-        <Link to="/referral">
-          <Card padded>
-            <div style={{ fontWeight: 600 }}>Referral</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Invite friends · earn XP</div>
-          </Card>
-        </Link>
-        <Link to="/rewards">
-          <Card padded>
-            <div style={{ fontWeight: 600 }}>Rewards & Achievements</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Unlock badges</div>
-          </Card>
-        </Link>
-        <Link to="/leaderboard">
-          <Card padded>
-            <div style={{ fontWeight: 600 }}>Leaderboard</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>XP · Trading · Referral</div>
-          </Card>
-        </Link>
-        <Link to="/status">
-          <Card padded>
-            <div style={{ fontWeight: 600 }}>System status</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-              Postgres · Redis · API health
-            </div>
-          </Card>
-        </Link>
+      {/* Menu */}
+      <div className="space-y-2">
+        {MENU.map((item) => (
+          <Link key={item.to} to={item.to} className="block">
+            <Card padded className="flex items-center justify-between active:scale-[0.99] transition">
+              <div className="flex items-center gap-3">
+                <span className="text-lg">{item.emoji}</span>
+                <span className="font-medium text-sm">{item.label}</span>
+              </div>
+              <span className="text-white/30">›</span>
+            </Card>
+          </Link>
+        ))}
       </div>
 
-      <h2 style={{ fontSize: 14, marginTop: 24, marginBottom: 8, color: 'rgba(255,255,255,0.5)' }}>
-        Notifications
-      </h2>
+      <Button fullWidth variant="outline" className="border-red-400/30 text-red-300">
+        Logout
+      </Button>
 
-      {!token && (
-        <Card padded>
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>
-            Sign in via Telegram to see notifications.
-          </p>
-        </Card>
-      )}
+      <div className="text-center text-xs text-white/40">Join Cryptra Community</div>
 
-      {notifLoading && (
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Loading…</p>
-      )}
-
-      {token && !notifLoading && notifs.length === 0 && (
-        <Card padded>
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>No notifications yet.</p>
-        </Card>
-      )}
-
-      <div style={{ display: 'grid', gap: 8 }}>
-        {notifs.map((n) => (
-          <Card key={n.id} padded>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-              <div style={{ fontWeight: 600, fontSize: 13 }}>{n.title}</div>
-              <Badge variant={n.status === 'READ' ? 'neutral' : 'success'}>{n.status}</Badge>
-            </div>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', margin: '6px 0' }}>{n.body}</p>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
-                {new Date(n.createdAt).toLocaleString()}
-              </span>
+      {/* Notifications */}
+      {token && (
+        <section className="space-y-2">
+          <h2 className="text-xs text-white/45 uppercase tracking-wide">Notifications</h2>
+          {notifs.length === 0 && (
+            <Card padded>
+              <p className="text-sm text-white/50">No notifications yet.</p>
+            </Card>
+          )}
+          {notifs.map((n) => (
+            <Card key={n.id} padded className="space-y-1">
+              <div className="flex justify-between gap-2">
+                <span className="font-semibold text-sm">{n.title}</span>
+                <Badge variant={n.status === 'READ' ? 'neutral' : 'success'}>{n.status}</Badge>
+              </div>
+              <p className="text-xs text-white/55">{n.body}</p>
               {n.status !== 'READ' && (
                 <Button size="sm" variant="ghost" onClick={() => void markRead(n.id)}>
                   Mark read
                 </Button>
               )}
-            </div>
-          </Card>
-        ))}
-      </div>
+            </Card>
+          ))}
+        </section>
+      )}
     </div>
   );
 }
