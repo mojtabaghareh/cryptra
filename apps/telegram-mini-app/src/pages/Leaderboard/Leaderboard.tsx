@@ -13,6 +13,13 @@ interface Entry {
 
 type Kind = 'xp' | 'referral' | 'trading';
 
+const DEMO: Entry[] = [
+  { rank: 1, userId: '1', username: 'CryptoKing', firstName: null, value: 12450, level: 40 },
+  { rank: 2, userId: '2', username: 'TokenMaster', firstName: null, value: 10320, level: 35 },
+  { rank: 3, userId: '3', username: 'DeFiPro', firstName: null, value: 9876, level: 33 },
+  { rank: 4, userId: '4', username: 'Mojtaba', firstName: null, value: 2450, level: 27 },
+];
+
 export function Leaderboard() {
   const [kind, setKind] = useState<Kind>('xp');
   const [rows, setRows] = useState<Entry[]>([]);
@@ -21,7 +28,6 @@ export function Leaderboard() {
 
   useEffect(() => {
     let cancelled = false;
-
     async function load() {
       setLoading(true);
       setError(null);
@@ -29,17 +35,16 @@ export function Leaderboard() {
         const res = await apiGet<{ success: boolean; data: Entry[] }>(
           `/api/v1/leaderboard?kind=${kind}&limit=50`,
         );
-        if (!cancelled) setRows(res.data ?? []);
+        if (!cancelled) setRows(res.data?.length ? res.data : DEMO);
       } catch (e) {
         if (!cancelled) {
-          setRows([]);
-          setError(e instanceof Error ? e.message : 'Failed to load');
+          setRows(DEMO);
+          setError(e instanceof Error ? e.message : null);
         }
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
-
     void load();
     return () => {
       cancelled = true;
@@ -49,68 +54,48 @@ export function Leaderboard() {
   const valueLabel = kind === 'xp' ? 'XP' : kind === 'referral' ? 'refs' : 'trades';
 
   return (
-    <div style={{ padding: 16 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700 }}>Leaderboard</h1>
-      <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 16 }}>
-        Global rankings
-      </p>
+    <div className="px-4 pb-6 space-y-4">
+      <div>
+        <h1 className="text-xl font-bold">Leaderboard</h1>
+        <p className="text-xs text-white/45 mt-0.5">Global rankings</p>
+      </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div className="flex gap-2 flex-wrap">
         {(['xp', 'referral', 'trading'] as Kind[]).map((k) => (
-          <Button
-            key={k}
-            size="sm"
-            variant={kind === k ? 'primary' : 'secondary'}
-            onClick={() => setKind(k)}
-          >
+          <Button key={k} size="sm" variant={kind === k ? 'primary' : 'secondary'} onClick={() => setKind(k)}>
             {k === 'xp' ? 'XP' : k === 'referral' ? 'Referral' : 'Trading'}
           </Button>
         ))}
       </div>
 
       {loading && (
-        <div style={{ display: 'grid', gap: 8 }}>
-          <Skeleton height={48} />
+        <div className="space-y-2">
           <Skeleton height={48} />
           <Skeleton height={48} />
         </div>
       )}
 
       {error && (
-        <Card padded>
-          <p style={{ color: '#ff5252', fontSize: 13 }}>{error}</p>
-        </Card>
+        <p className="text-[11px] text-white/35">API offline · showing demo ranks</p>
       )}
 
-      {!loading && !error && rows.length === 0 && (
-        <Card padded>
-          <p style={{ color: 'rgba(255,255,255,0.6)' }}>No rankings yet. Earn XP to appear here.</p>
-        </Card>
-      )}
-
-      <div style={{ display: 'grid', gap: 8 }}>
+      <div className="space-y-2">
         {rows.map((e) => {
-          const name = e.username
-            ? `@${e.username}`
-            : e.firstName || e.userId.slice(0, 8);
+          const name = e.username ? `@${e.username}` : e.firstName || e.userId.slice(0, 8);
           const medal =
             e.rank === 1 ? '🥇' : e.rank === 2 ? '🥈' : e.rank === 3 ? '🥉' : `#${e.rank}`;
           return (
-            <Card key={e.userId} padded>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <span style={{ marginRight: 8 }}>{medal}</span>
-                  <span style={{ fontWeight: 600 }}>{name}</span>
-                  {e.level != null && (
-                    <span style={{ marginLeft: 8, fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
-                      L{e.level}
-                    </span>
-                  )}
+            <Card key={e.userId} padded className="flex justify-between items-center">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-8 text-center">{medal}</span>
+                <div className="min-w-0">
+                  <div className="font-semibold text-sm truncate">{name}</div>
+                  {e.level != null && <div className="text-[11px] text-white/40">L{e.level}</div>}
                 </div>
-                <Badge variant={e.rank <= 3 ? 'success' : 'neutral'}>
-                  {e.value} {valueLabel}
-                </Badge>
               </div>
+              <Badge variant={e.rank <= 3 ? 'success' : 'neutral'}>
+                {e.value.toLocaleString()} {valueLabel}
+              </Badge>
             </Card>
           );
         })}
