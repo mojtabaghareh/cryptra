@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { useTelegram } from './telegram';
 
 type Theme = 'dark' | 'light' | 'system';
 
@@ -21,12 +20,11 @@ export function useTheme(): ThemeContextValue {
 }
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { webApp } = useTelegram();
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
-      return (localStorage.getItem('cryptra-theme') as Theme) || 'system';
+      return (localStorage.getItem('cryptra-theme') as Theme) || 'dark';
     }
-    return 'system';
+    return 'dark';
   });
 
   const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>('dark');
@@ -37,20 +35,20 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const isDark = theme === 'dark' || (theme === 'system' && systemDark);
 
     setResolvedTheme(isDark ? 'dark' : 'light');
+    root.classList.toggle('dark', isDark);
+    root.classList.toggle('light', !isDark);
+    document.body.style.background = isDark ? '#0a0a0f' : '#f8fafc';
+    document.body.style.color = isDark ? '#f0f0f5' : '#0a0a0f';
 
-    if (isDark) {
-      root.classList.add('dark');
-      root.classList.remove('light');
-    } else {
-      root.classList.add('light');
-      root.classList.remove('dark');
+    try {
+      const tg = (window as unknown as { Telegram?: { WebApp?: { setHeaderColor?: (c: string) => void; setBackgroundColor?: (c: string) => void } } })
+        .Telegram?.WebApp;
+      tg?.setHeaderColor?.(isDark ? '#0a0a0f' : '#f8fafc');
+      tg?.setBackgroundColor?.(isDark ? '#0a0a0f' : '#f8fafc');
+    } catch {
+      // ignore
     }
-
-    if (webApp) {
-      webApp.setHeaderColor(isDark ? '#0a0a0f' : '#f8fafc');
-      webApp.setBackgroundColor(isDark ? '#0a0a0f' : '#f8fafc');
-    }
-  }, [theme, webApp]);
+  }, [theme]);
 
   const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme);
