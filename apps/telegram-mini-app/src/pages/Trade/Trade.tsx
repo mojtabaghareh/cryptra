@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { Card, Button, Badge } from '../../lib/ui';
+import { Card, Button, Badge, Sparkline } from '../../lib/ui';
 import { useWalletStore } from '../../store/walletStore';
 import { useSessionStore } from '../../store/sessionStore';
 import {
@@ -26,7 +26,7 @@ const PAIRS = [
   },
   {
     id: 'eth-usdc',
-    label: 'ETH → USDC (1inch)',
+    label: 'ETH → USDC',
     fromChain: 'ethereum',
     toChain: 'ethereum',
     fromToken: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
@@ -42,10 +42,10 @@ const inputStyle: CSSProperties = {
   width: '100%',
   marginTop: 4,
   marginBottom: 12,
-  padding: '12px',
-  borderRadius: 12,
-  border: '1px solid rgba(255,255,255,0.1)',
-  background: 'rgba(0,0,0,0.3)',
+  padding: '14px 16px',
+  borderRadius: 14,
+  border: '1px solid rgba(59,130,246,0.25)',
+  background: 'rgba(12,12,26,0.9)',
   color: 'white',
   fontSize: 18,
 };
@@ -58,8 +58,8 @@ export function Trade() {
   const token = useSessionStore((s) => s.token);
 
   const [tab, setTab] = useState<'swap' | 'perp'>('swap');
-  const [pairId, setPairId] = useState<(typeof PAIRS)[number]['id']>('sol-usdc');
-  const [fromAmount, setFromAmount] = useState('');
+  const [pairId, setPairId] = useState<(typeof PAIRS)[number]['id']>('eth-usdc');
+  const [fromAmount, setFromAmount] = useState('100');
   const [slippageBps, setSlippageBps] = useState(50);
   const [quote, setQuote] = useState<SwapQuoteResult | null>(null);
   const [builtTx, setBuiltTx] = useState<unknown>(null);
@@ -69,12 +69,13 @@ export function Trade() {
   const [error, setError] = useState<string | null>(null);
 
   const [perpSide, setPerpSide] = useState<'LONG' | 'SHORT'>('LONG');
-  const [perpSymbol, setPerpSymbol] = useState<(typeof PERP_SYMBOLS)[number]>('BTC');
+  const [perpSymbol, setPerpSymbol] = useState<(typeof PERP_SYMBOLS)[number]>('ETH');
   const [perpSize, setPerpSize] = useState('');
   const [leverage, setLeverage] = useState(5);
   const [hlMids, setHlMids] = useState<Record<string, number>>({});
 
   const pair = PAIRS.find((p) => p.id === pairId)!;
+  const demoPrice = pairId === 'eth-usdc' ? 3254 : 142.56;
 
   useEffect(() => {
     if (!token || tab !== 'perp') return;
@@ -90,7 +91,7 @@ export function Trade() {
         for (const row of res.data) map[row.symbol] = row.mid;
         setHlMids(map);
       } catch {
-        // non-blocking
+        /* non-blocking */
       }
     })();
     return () => {
@@ -104,16 +105,14 @@ export function Trade() {
     setQuote(null);
     setBuiltTx(null);
     setTxHash('');
-
     if (!token) {
-      setError('Authenticate inside Telegram first (session required).');
+      setError('Open from Telegram for live quotes (session required).');
       return;
     }
     if (!fromAmount || Number(fromAmount) <= 0) {
       setError('Enter a valid amount');
       return;
     }
-
     setLoading(true);
     try {
       const raw = String(Math.floor(Number(fromAmount) * 10 ** pair.decimals));
@@ -145,10 +144,7 @@ export function Trade() {
     setLoading(true);
     setError(null);
     try {
-      const res = await buildSwapTx(token, {
-        quoteId: quote.quoteId,
-        userAddress: walletAddress,
-      });
+      const res = await buildSwapTx(token, { quoteId: quote.quoteId, userAddress: walletAddress });
       setBuiltTx(res.data.transaction);
       setMessage(`Transaction built (${res.data.protocol}).`);
     } catch (e) {
@@ -168,7 +164,6 @@ export function Trade() {
     try {
       let hash: string;
       const protocol = quote?.protocol?.toLowerCase() ?? '';
-
       if (protocol.includes('jupiter') || pair.fromChain === 'solana') {
         if (walletProvider !== 'phantom') {
           setError('Connect Phantom for Solana swaps');
@@ -184,7 +179,6 @@ export function Trade() {
         }
         hash = await sendOneInchTransaction(builtTx, walletAddress);
       }
-
       setTxHash(hash);
       setMessage(`Broadcast ✓ ${hash.slice(0, 16)}…`);
     } catch (e) {
@@ -256,33 +250,59 @@ export function Trade() {
   }
 
   return (
-    <div style={{ padding: 16 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700 }}>Trade</h1>
-      <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 16 }}>
-        Swap on-chain · Perps (Hyperliquid mids)
-      </p>
+    <div className="px-4 pb-6 space-y-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold">Trade</h1>
+          <p className="text-xs text-white/45 mt-0.5">Swap · Perps · Smart route</p>
+        </div>
+        <div className="text-right">
+          <div className="text-sm font-semibold">ETH / USDT</div>
+          <div className="text-lg font-bold">${demoPrice.toLocaleString()}</div>
+          <div className="text-xs text-emerald-400">+2.14%</div>
+        </div>
+      </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <Button variant={tab === 'swap' ? 'primary' : 'secondary'} size="sm" onClick={() => setTab('swap')}>
+      <Card padded className="border-cyan-500/15">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs text-white/45">Chart preview</span>
+          <div className="flex gap-1 text-[10px] text-white/40">
+            {['1m', '5m', '15m', '1h', '4h', '1d'].map((t) => (
+              <span
+                key={t}
+                className={`px-1.5 py-0.5 rounded ${t === '1h' ? 'bg-blue-600/40 text-cyan-200' : ''}`}
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="flex justify-center py-2">
+          <Sparkline points={[30, 34, 32, 40, 38, 45, 42, 50, 48, 55]} positive />
+        </div>
+      </Card>
+
+      <div className="flex gap-2">
+        <Button size="sm" variant={tab === 'swap' ? 'primary' : 'secondary'} onClick={() => setTab('swap')}>
           Swap
         </Button>
-        <Button variant={tab === 'perp' ? 'primary' : 'secondary'} size="sm" onClick={() => setTab('perp')}>
+        <Button size="sm" variant={tab === 'perp' ? 'primary' : 'secondary'} onClick={() => setTab('perp')}>
           Perps
         </Button>
       </div>
 
       {!token && (
         <Card padded>
-          <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>
-            Open this Mini App from Telegram so session auth can run.
+          <p className="text-sm text-white/60 mb-2">
+            Live quotes need Telegram session. UI works in demo mode.
           </p>
-          <Badge variant="neutral">No JWT session</Badge>
+          <Badge variant="neutral">No JWT</Badge>
         </Card>
       )}
 
       {tab === 'swap' ? (
-        <Card padded>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <Card padded className="space-y-3">
+          <div className="flex gap-2 flex-wrap">
             {PAIRS.map((p) => (
               <Button
                 key={p.id}
@@ -299,10 +319,8 @@ export function Trade() {
             ))}
           </div>
 
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-              Amount ({pair.unit})
-            </label>
+          <div>
+            <label className="text-xs text-white/45">You Pay ({pair.unit === 'ETH' ? 'USDT' : pair.unit})</label>
             <input
               value={fromAmount}
               onChange={(e) => setFromAmount(e.target.value)}
@@ -312,10 +330,21 @@ export function Trade() {
             />
           </div>
 
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-              Slippage: {slippageBps / 100}%
-            </label>
+          <div className="text-center text-white/30 text-sm">↓</div>
+
+          <div>
+            <label className="text-xs text-white/45">You Receive</label>
+            <div className="rounded-xl border border-blue-500/20 bg-[#0c0c1a] px-4 py-3 text-lg font-semibold">
+              {quote?.toAmount ??
+                (fromAmount && pairId === 'eth-usdc'
+                  ? (Number(fromAmount) / demoPrice).toFixed(4)
+                  : '—')}{' '}
+              <span className="text-sm text-white/40">{pair.unit}</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-white/45">Slippage {slippageBps / 100}%</label>
             <input
               type="range"
               min={10}
@@ -323,63 +352,60 @@ export function Trade() {
               step={10}
               value={slippageBps}
               onChange={(e) => setSlippageBps(Number(e.target.value))}
-              style={{ width: '100%' }}
+              className="w-full"
             />
           </div>
 
           {!isConnected && (
-            <div style={{ marginBottom: 8 }}>
-              <Button fullWidth variant="secondary" onClick={() => void connect()}>
-                Connect wallet
-              </Button>
-            </div>
+            <Button fullWidth variant="secondary" onClick={() => void connect()}>
+              Connect wallet
+            </Button>
           )}
 
           {isConnected && walletAddress && (
-            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>
-              Signer: {walletProvider} · {walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}
+            <p className="text-[11px] text-white/40">
+              {walletProvider} · {walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}
             </p>
           )}
 
           <Button fullWidth disabled={loading || !fromAmount} onClick={() => void handleQuote()}>
-            {loading ? 'Loading…' : '1. Get quote'}
+            {loading ? 'Loading…' : token ? '1. Get live quote' : 'Preview / Get quote'}
           </Button>
 
           {quote && (
-            <div style={{ marginTop: 16, fontSize: 13, lineHeight: 1.6 }}>
+            <div className="space-y-2 text-sm">
               <Badge variant="success">{quote.protocol}</Badge>
-              <div style={{ marginTop: 8 }}>
-                Out: <b>{quote.toAmount}</b>
-              </div>
               <div>
                 Fee: {quote.feePercent}% (~{quote.feeAmount})
               </div>
-
-              <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
-                <Button fullWidth variant="secondary" disabled={loading} onClick={() => void handleBuild()}>
-                  2. Build transaction
+              <Button fullWidth variant="secondary" disabled={loading} onClick={() => void handleBuild()}>
+                2. Build transaction
+              </Button>
+              {builtTx != null && (
+                <Button fullWidth disabled={loading} onClick={() => void handleSignAndSend()}>
+                  3. Sign & send
                 </Button>
-                {builtTx != null && (
-                  <Button fullWidth variant="primary" disabled={loading} onClick={() => void handleSignAndSend()}>
-                    3. Sign & send in wallet
-                  </Button>
-                )}
-                <input
-                  value={txHash}
-                  onChange={(e) => setTxHash(e.target.value)}
-                  placeholder="tx hash"
-                  style={{ ...inputStyle, fontSize: 13, marginBottom: 0 }}
-                />
-                <Button fullWidth variant="outline" disabled={loading} onClick={() => void handleExecute()}>
-                  4. Record on Cryptra
-                </Button>
-              </div>
+              )}
+              <input
+                value={txHash}
+                onChange={(e) => setTxHash(e.target.value)}
+                placeholder="tx hash"
+                style={{ ...inputStyle, fontSize: 13, marginBottom: 0 }}
+              />
+              <Button fullWidth variant="outline" disabled={loading} onClick={() => void handleExecute()}>
+                4. Record on Cryptra
+              </Button>
             </div>
           )}
+
+          <Button fullWidth className="mt-1" disabled={loading}>
+            ⚡ Swap Now
+          </Button>
+          <p className="text-[10px] text-center text-white/35">Route fee ~0.09%</p>
         </Card>
       ) : (
-        <Card padded>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <Card padded className="space-y-3">
+          <div className="flex gap-2 flex-wrap">
             {PERP_SYMBOLS.map((s) => (
               <Button
                 key={s}
@@ -392,8 +418,7 @@ export function Trade() {
               </Button>
             ))}
           </div>
-
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <div className="flex gap-2">
             <Button
               variant={perpSide === 'LONG' ? 'primary' : 'outline'}
               size="sm"
@@ -409,43 +434,29 @@ export function Trade() {
               Short
             </Button>
           </div>
-
-          <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Size</label>
           <input
             value={perpSize}
             onChange={(e) => setPerpSize(e.target.value)}
-            placeholder="0.01"
+            placeholder="Size"
             style={inputStyle}
           />
-
-          <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Leverage: {leverage}x</label>
+          <label className="text-xs text-white/45">Leverage {leverage}x</label>
           <input
             type="range"
             min={1}
             max={20}
             value={leverage}
             onChange={(e) => setLeverage(Number(e.target.value))}
-            style={{ width: '100%', marginBottom: 12 }}
+            className="w-full"
           />
-
-          {hlMids[perpSymbol] != null && (
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>
-              HL mid: ${hlMids[perpSymbol].toLocaleString()}
-            </p>
-          )}
-
           <Button fullWidth disabled={loading || !perpSize} onClick={() => void handlePerp()}>
             {loading ? 'Submitting…' : `Open ${perpSide} ${perpSymbol}`}
           </Button>
-
-          <p style={{ marginTop: 10, fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
-            Positions tracked at Hyperliquid mid. On-exchange agent signing is a separate step.
-          </p>
         </Card>
       )}
 
-      {message && <p style={{ marginTop: 12, fontSize: 13, color: '#00c853' }}>{message}</p>}
-      {error && <p style={{ marginTop: 12, fontSize: 13, color: '#ff5252' }}>{error}</p>}
+      {message && <p className="text-sm text-emerald-400">{message}</p>}
+      {error && <p className="text-sm text-red-400">{error}</p>}
     </div>
   );
 }
