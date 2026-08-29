@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Card, Badge, Button, Skeleton } from '../../lib/ui';
+import { Card, Badge, Skeleton, Button } from '../../lib/ui';
 import { useSessionStore } from '../../store/sessionStore';
 import { apiGet } from '../../lib/api';
+import { Link } from '@tanstack/react-router';
 
 interface Achievement {
   id: string;
@@ -19,153 +20,158 @@ interface UserAchievement {
   achievement: Achievement;
 }
 
-interface Reward {
-  id: string;
-  code: string;
-  type: string;
-  name: string;
-  description: string | null;
-  value: string | null;
-}
+const DEMO_BADGES = [
+  { title: 'First Trade', emoji: '🥇' },
+  { title: '30 Days', emoji: '🛡️' },
+  { title: 'Decision Master', emoji: '⭐' },
+];
 
-interface UserReward {
-  id: string;
-  rewardId: string;
-  claimedAt: string;
-  reward: Reward;
-}
+const DEMO_LB = [
+  { rank: 1, name: 'CryptoKing', xp: 12450 },
+  { rank: 2, name: 'TokenMaster', xp: 10320 },
+  { rank: 3, name: 'DeFiPro', xp: 9876 },
+];
 
 export function Rewards() {
   const token = useSessionStore((s) => s.token);
+  const sessionUser = useSessionStore((s) => s.user);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [unlocked, setUnlocked] = useState<UserAchievement[]>([]);
-  const [catalog, setCatalog] = useState<Reward[]>([]);
-  const [claimed, setClaimed] = useState<UserReward[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const xp = sessionUser?.xp ?? 2450;
+  const level = sessionUser?.level ?? 27;
+  const nextLevelXp = Math.max(5000, xp + 500);
+  const progress = Math.min(100, Math.round((xp / nextLevelXp) * 100));
 
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
-
-    async function load() {
+    (async () => {
       setLoading(true);
-      setError(null);
       try {
-        const [rew, ach] = await Promise.all([
-          apiGet<{ success: boolean; data: { catalog: Reward[]; claimed: UserReward[] } }>(
-            '/api/v1/rewards',
-            token,
-          ),
-          apiGet<{
-            success: boolean;
-            data: { all: Achievement[]; unlocked: UserAchievement[] };
-          }>('/api/v1/rewards/achievements', token),
-        ]);
+        const ach = await apiGet<{
+          success: boolean;
+          data: { all: Achievement[]; unlocked: UserAchievement[] };
+        }>('/api/v1/rewards/achievements', token);
         if (cancelled) return;
-        setCatalog(rew.data?.catalog ?? []);
-        setClaimed(rew.data?.claimed ?? []);
         setAchievements(ach.data?.all ?? []);
         setUnlocked(ach.data?.unlocked ?? []);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load');
+      } catch {
+        /* demo */
       } finally {
         if (!cancelled) setLoading(false);
       }
-    }
-
-    void load();
+    })();
     return () => {
       cancelled = true;
     };
   }, [token]);
 
   const unlockedIds = new Set(unlocked.map((u) => u.achievementId));
-  const claimedIds = new Set(claimed.map((c) => c.rewardId));
 
   return (
-    <div style={{ padding: 16 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700 }}>Rewards</h1>
-      <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 16 }}>
-        Achievements & rewards from the platform
-      </p>
+    <div className="px-4 pb-6 space-y-4">
+      <h1 className="text-xl font-bold">Growth</h1>
+
+      <Card padded className="border-amber-400/30 bg-gradient-to-r from-amber-500/15 to-orange-600/10 text-center">
+        <div className="text-sm font-semibold text-amber-300">🔥 15-Day Streak</div>
+      </Card>
+
+      <Card padded className="border-cyan-500/20">
+        <div className="flex items-center justify-between mb-2">
+          <span className="font-semibold">Trader Level {level}</span>
+          <Badge variant="neutral">
+            {xp.toLocaleString()} / {nextLevelXp.toLocaleString()} XP
+          </Badge>
+        </div>
+        <div className="h-2.5 rounded-full bg-white/10 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Card padded className="text-center">
+          <div className="text-cyan-300 text-lg font-bold">+320</div>
+          <div className="text-[11px] text-white/45">XP Today</div>
+        </Card>
+        <Card padded className="text-center">
+          <div className="text-amber-300 text-lg font-bold">12</div>
+          <div className="text-[11px] text-white/45">Achievements</div>
+        </Card>
+        <Card padded className="text-center">
+          <div className="text-lg font-bold">4</div>
+          <div className="text-[11px] text-white/45">Badges</div>
+        </Card>
+        <Card padded className="text-center">
+          <div className="text-lg font-bold">#128</div>
+          <div className="text-[11px] text-white/45">Global Rank</div>
+        </Card>
+      </div>
+
+      <section>
+        <h2 className="text-sm font-semibold mb-2">Recent Badges</h2>
+        <div className="flex gap-3">
+          {DEMO_BADGES.map((b) => (
+            <div
+              key={b.title}
+              className="flex-1 rounded-2xl border border-blue-500/20 bg-[#12122a] py-3 text-center"
+            >
+              <div className="text-2xl">{b.emoji}</div>
+              <div className="text-[10px] text-white/55 mt-1">{b.title}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-sm font-semibold">Leaderboard</h2>
+          <Link to="/leaderboard" className="text-xs text-cyan-400">
+            View All
+          </Link>
+        </div>
+        <Card padded className="space-y-2">
+          {DEMO_LB.map((r) => (
+            <div key={r.rank} className="flex items-center gap-3 text-sm">
+              <span className="w-5 text-white/40">{r.rank}</span>
+              <span className="flex-1 font-medium">{r.name}</span>
+              <span className="text-emerald-400 text-xs">+{r.xp.toLocaleString()} XP</span>
+            </div>
+          ))}
+        </Card>
+      </section>
+
+      {loading && <Skeleton height={48} />}
+
+      {achievements.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold">All achievements</h2>
+          {achievements.map((a) => (
+            <Card key={a.id} padded className="flex justify-between items-center">
+              <div>
+                <div className="font-medium text-sm">{a.name}</div>
+                <div className="text-xs text-white/40">{a.description || a.code}</div>
+              </div>
+              <Badge variant={unlockedIds.has(a.id) ? 'success' : 'neutral'}>
+                {unlockedIds.has(a.id) ? 'Unlocked' : `+${a.xpReward} XP`}
+              </Badge>
+            </Card>
+          ))}
+        </section>
+      )}
 
       {!token && (
         <Card padded>
-          <p style={{ color: 'rgba(255,255,255,0.6)' }}>
-            Open from Telegram to sync achievements with your account.
-          </p>
+          <p className="text-sm text-white/55 mb-2">Open in Telegram to sync real XP & badges.</p>
+          <Button fullWidth variant="outline" onClick={() => undefined}>
+            Demo growth view active
+          </Button>
         </Card>
       )}
-
-      {loading && (
-        <div style={{ display: 'grid', gap: 8 }}>
-          <Skeleton height={56} />
-          <Skeleton height={56} />
-        </div>
-      )}
-
-      {error && (
-        <Card padded>
-          <p style={{ color: '#ff5252', fontSize: 13 }}>{error}</p>
-        </Card>
-      )}
-
-      <h2 style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', margin: '16px 0 8px' }}>
-        Achievements
-      </h2>
-      <div style={{ display: 'grid', gap: 8 }}>
-        {(achievements.length > 0 ? achievements : []).map((a) => {
-          const done = unlockedIds.has(a.id);
-          return (
-            <Card key={a.id} padded>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>
-                    {a.icon ? `${a.icon} ` : ''}{a.name}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
-                    {a.description || a.code}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <Badge variant={done ? 'success' : 'neutral'}>
-                    {done ? 'Unlocked' : `+${a.xpReward} XP`}
-                  </Badge>
-                </div>
-              </div>
-            </Card>
-          );
-        })}
-        {!loading && token && achievements.length === 0 && (
-          <Card padded>
-            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>
-              No achievements seeded yet. Run <code>pnpm db:seed</code>.
-            </p>
-          </Card>
-        )}
-      </div>
-
-      <h2 style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', margin: '20px 0 8px' }}>
-        Reward catalog
-      </h2>
-      <div style={{ display: 'grid', gap: 8 }}>
-        {catalog.map((r) => (
-          <Card key={r.id} padded>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontWeight: 600 }}>{r.name}</div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
-                  {r.description || r.code} · {r.type}
-                </div>
-              </div>
-              <Badge variant={claimedIds.has(r.id) ? 'success' : 'neutral'}>
-                {claimedIds.has(r.id) ? 'Claimed' : r.value ?? '—'}
-              </Badge>
-            </div>
-          </Card>
-        ))}
-      </div>
     </div>
   );
 }
