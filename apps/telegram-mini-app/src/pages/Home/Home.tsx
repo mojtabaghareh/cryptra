@@ -4,7 +4,8 @@ import { Card, Button, PriceDisplay, Sparkline } from '../../lib/ui';
 import { useWalletStore } from '../../store/walletStore';
 import { useSessionStore } from '../../store/sessionStore';
 import { useTranslation } from '../../lib/i18n';
-import { apiGet, fetchMarketPrices } from '../../lib/api';
+import { apiGet } from '../../lib/api';
+import { fetchCoinsPage, type MarketCoin } from '../../lib/markets';
 
 interface PortfolioData {
   totalValueUsd: number;
@@ -12,37 +13,6 @@ interface PortfolioData {
   recentSwaps: number;
   assets: Array<{ symbol: string; chain?: string; balance: string }>;
 }
-
-interface CoinRow {
-  id: string;
-  symbol: string;
-  name: string;
-  price: number;
-  change: number;
-}
-
-const COIN_META: Record<string, { symbol: string; name: string }> = {
-  bitcoin: { symbol: 'BTC', name: 'Bitcoin' },
-  ethereum: { symbol: 'ETH', name: 'Ethereum' },
-  solana: { symbol: 'SOL', name: 'Solana' },
-  toncoin: { symbol: 'TON', name: 'Toncoin' },
-  binancecoin: { symbol: 'BNB', name: 'BNB' },
-  ripple: { symbol: 'XRP', name: 'XRP' },
-  cardano: { symbol: 'ADA', name: 'Cardano' },
-  dogecoin: { symbol: 'DOGE', name: 'Dogecoin' },
-  'avalanche-2': { symbol: 'AVAX', name: 'Avalanche' },
-  chainlink: { symbol: 'LINK', name: 'Chainlink' },
-  polkadot: { symbol: 'DOT', name: 'Polkadot' },
-  polygon: { symbol: 'MATIC', name: 'Polygon' },
-  litecoin: { symbol: 'LTC', name: 'Litecoin' },
-  uniswap: { symbol: 'UNI', name: 'Uniswap' },
-  stellar: { symbol: 'XLM', name: 'Stellar' },
-  cosmos: { symbol: 'ATOM', name: 'Cosmos' },
-  near: { symbol: 'NEAR', name: 'NEAR' },
-  aptos: { symbol: 'APT', name: 'Aptos' },
-  arbitrum: { symbol: 'ARB', name: 'Arbitrum' },
-  optimism: { symbol: 'OP', name: 'Optimism' },
-};
 
 const ACTIONS = [
   { id: 'buy', labelKey: 'home.action.buy', emoji: '➕', path: '/markets', color: 'text-cyan-400' },
@@ -59,78 +29,49 @@ export function Home(): JSX.Element {
   const token = useSessionStore((s) => s.token);
 
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
-  const [coins, setCoins] = useState<CoinRow[]>([]);
+  const [coins, setCoins] = useState<MarketCoin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchPortfolio = useCallback(async () => {
-    try {
-      if (token) {
-        const res = await apiGet<{ success: boolean; data: PortfolioData }>(
-          '/api/v1/portfolio/me',
-          token,
-        );
-        if (res.success) setPortfolio(res.data);
-        else setPortfolio(null);
-      } else setPortfolio(null);
-    } catch {
-      setPortfolio(null);
-    }
-  }, [token]);
-
-  const fetchCoins = useCallback(async () => {
-    setIsLoading(true);
-    const ids = Object.keys(COIN_META).join(',');
-    try {
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
       try {
-        const res = await fetchMarketPrices();
-        if (res.success && res.data) {
-          const rows = Object.entries(COIN_META)
-            .map(([id, m]) => ({
-              id,
-              ...m,
-              price: res.data[id]?.usd ?? 0,
-              change: res.data[id]?.usd_24h_change ?? 0,
-            }))
-            .filter((r) => r.price > 0);
-          if (rows.length) {
-            setCoins(rows);
-            setIsLoading(false);
-            return;
-          }
+        if (token) {
+          const res = await apiGet<{ success: boolean; data: PortfolioData }>(
+            '/api/v1/portfolio/me',
+            token,
+          );
+          if (!cancelled && res.success) setPortfolio(res.data);
         }
       } catch {
-        /* fallback */
+        /* ignore */
       }
-      const r = await fetch(
-        `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`,
-      );
-      const d = await r.json();
-      setCoins(
-        Object.entries(COIN_META).map(([id, m]) => ({
-          id,
-          ...m,
-          price: d[id]?.usd ?? 0,
-          change: d[id]?.usd_24h_change ?? 0,
-        })),
-      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const loadCoins = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await fetchCoinsPage(1, 50);
+      setCoins(data);
     } catch {
-      setCoins(
-        Object.entries(COIN_META).map(([id, m], i) => ({
-          id,
-          ...m,
-          price: [68432, 3254, 142, 5.4, 587, 0.6][i % 6] ?? 1,
-          change: [1.26, 2.35, 4.1, 3.2, -1.2, 0.8][i % 6] ?? 0,
-        })),
-      );
+      setCoins([
+        { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', price: 68432, change24h: 1.26 },
+        { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', price: 3254, change24h: 2.35 },
+        { id: 'solana', symbol: 'SOL', name: 'Solana', price: 142, change24h: 4.1 },
+        { id: 'toncoin', symbol: 'TON', name: 'Toncoin', price: 5.42, change24h: 3.2 },
+      ]);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void fetchPortfolio();
-    void fetchCoins();
-  }, [fetchPortfolio, fetchCoins]);
+    void loadCoins();
+  }, [loadCoins]);
 
   const balance = portfolio?.totalValueUsd ?? 10000;
 
@@ -178,7 +119,7 @@ export function Home(): JSX.Element {
             key={a.id}
             type="button"
             onClick={() => navigate({ to: a.path })}
-            className="flex flex-col items-center gap-1.5 py-3.5 rounded-2xl bg-[#0e0e22] border border-blue-500/20 hover:border-cyan-400/40 transition shadow-[0_0_20px_rgba(0,0,0,0.3)]"
+            className="flex flex-col items-center gap-1.5 py-3.5 rounded-2xl bg-[#0e0e22] border border-blue-500/20 hover:border-cyan-400/40 transition"
           >
             <span className={`text-xl ${a.color}`}>{a.emoji}</span>
             <span className="text-[11px] text-white/70 font-medium">{t(a.labelKey)}</span>
@@ -212,8 +153,8 @@ export function Home(): JSX.Element {
           </button>
         </div>
         <div className="space-y-2">
-          {(isLoading ? coins.slice(0, 4) : coins.slice(0, 8)).map((c) => {
-            const up = c.change >= 0;
+          {(isLoading ? [] : coins.slice(0, 10)).map((c) => {
+            const up = c.change24h >= 0;
             return (
               <button
                 key={c.id}
@@ -221,18 +162,16 @@ export function Home(): JSX.Element {
                 onClick={() => navigate({ to: '/markets' })}
                 className="w-full flex items-center gap-3 p-3 rounded-2xl bg-[#0e0e22]/95 border border-blue-500/10 text-left"
               >
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/40 to-cyan-500/20 flex items-center justify-center text-xs font-bold shrink-0">
-                  {c.symbol.slice(0, 2)}
-                </div>
+                {c.image ? (
+                  <img src={c.image} alt="" className="w-10 h-10 rounded-full" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-xs font-bold">
+                    {c.symbol.slice(0, 2)}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm">{c.name}</div>
                   <div className="text-xs text-white/40">{c.symbol}</div>
-                </div>
-                <div className="hidden sm:block opacity-80">
-                  <Sparkline
-                    positive={up}
-                    points={up ? [10, 14, 12, 18, 16, 22] : [22, 18, 20, 14, 16, 10]}
-                  />
                 </div>
                 <div className="text-right shrink-0">
                   <div className="font-semibold text-sm">
@@ -243,12 +182,15 @@ export function Home(): JSX.Element {
                   </div>
                   <div className={`text-xs font-medium ${up ? 'text-emerald-400' : 'text-red-400'}`}>
                     {up ? '+' : ''}
-                    {c.change.toFixed(2)}%
+                    {c.change24h.toFixed(2)}%
                   </div>
                 </div>
               </button>
             );
           })}
+          {isLoading && (
+            <div className="text-center text-xs text-white/40 py-4">Loading markets…</div>
+          )}
         </div>
       </section>
     </div>
