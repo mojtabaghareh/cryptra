@@ -7,4 +7,18 @@ export type {
   SwapExecuteResult,
 } from './types';
 
-export { jupiterAdapter, oneInchAdapter, JupiterAdapter, OneInchAdapter } from './adapters';
+export {
+  jupiterAdapter,
+  oneInchAdapter,
+  uniswapAdapter,
+  pancakeSwapAdapter,
+  kyberAdapter,
+  stonfiAdapter,
+  ALL_SWAP_ADAPTERS,
+  JupiterAdapter,
+  OneInchAdapter,
+  UniswapAdapter,
+  PancakeSwapAdapter,
+  KyberAdapter,
+  StonfiAdapter,
+} from './adapters';
