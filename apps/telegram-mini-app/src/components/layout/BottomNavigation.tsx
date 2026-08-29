@@ -1,25 +1,21 @@
 import React from 'react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import { useTelegram } from '../../telegram/telegram';
+import { useTranslation } from '../../lib/i18n';
 import { Home, BarChart3, ArrowLeftRight, Wallet, User } from 'lucide-react';
-
-interface NavItem {
-  to: string;
-  label: string;
-  icon: React.ReactNode;
-}
 
 export const BottomNavigation: React.FC = () => {
   const { haptic } = useTelegram();
+  const { t } = useTranslation();
   const router = useRouterState();
   const currentPath = router.location.pathname;
 
-  const items: NavItem[] = [
-    { to: '/', label: 'Home', icon: <Home className="w-5 h-5" /> },
-    { to: '/markets', label: 'Markets', icon: <BarChart3 className="w-5 h-5" /> },
-    { to: '/trade', label: 'Trade', icon: <ArrowLeftRight className="w-5 h-5" /> },
-    { to: '/wallet', label: 'Wallet', icon: <Wallet className="w-5 h-5" /> },
-    { to: '/profile', label: 'Profile', icon: <User className="w-5 h-5" /> },
+  const items = [
+    { to: '/', label: t('nav.home'), icon: <Home className="w-5 h-5" /> },
+    { to: '/markets', label: t('nav.markets'), icon: <BarChart3 className="w-5 h-5" /> },
+    { to: '/trade', label: t('nav.trade'), icon: <ArrowLeftRight className="w-5 h-5" /> },
+    { to: '/wallet', label: t('nav.wallet'), icon: <Wallet className="w-5 h-5" /> },
+    { to: '/profile', label: t('nav.profile'), icon: <User className="w-5 h-5" /> },
   ];
 
   return (
