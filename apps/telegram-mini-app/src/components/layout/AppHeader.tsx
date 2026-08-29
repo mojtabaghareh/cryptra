@@ -1,7 +1,7 @@
 import React from 'react';
 import { useRouterState } from '@tanstack/react-router';
 import { useTelegram } from '../../telegram/telegram';
-import { Zap, ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Zap } from 'lucide-react';
 
 export const AppHeader: React.FC = () => {
   const { user, haptic } = useTelegram();
@@ -9,41 +9,38 @@ export const AppHeader: React.FC = () => {
   const currentPath = router.location.pathname;
   const isHome = currentPath === '/';
 
-  const handleBack = () => {
-    haptic.light();
-    window.history.back();
-  };
-
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0a0a0f]/90 backdrop-blur shrink-0">
+    <header className="sticky top-0 z-40 border-b border-blue-500/15 bg-[#050510]/85 backdrop-blur-xl shrink-0">
       <div className="flex items-center justify-between h-14 px-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {!isHome && (
             <button
               type="button"
-              onClick={handleBack}
-              className="p-1.5 rounded-lg text-white/70 hover:bg-white/5"
+              onClick={() => {
+                haptic.light();
+                window.history.back();
+              }}
+              className="p-1.5 rounded-lg text-cyan-200/80 hover:bg-white/5"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
           )}
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-cyan-400 flex items-center justify-center">
-              <Zap className="w-5 h-5 text-white" />
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-[0_0_16px_rgba(34,211,238,0.45)]">
+              <Zap className="w-4 h-4 text-white" fill="currentColor" />
             </div>
-            <span className="font-bold text-lg bg-gradient-to-r from-violet-400 to-cyan-300 bg-clip-text text-transparent">
-              Cryptra
-            </span>
+            <div className="leading-tight">
+              <div className="font-bold text-[15px] tracking-tight text-white">Cryptra</div>
+              <div className="text-[10px] text-cyan-300/60">mini app</div>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {user && (
-            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm font-medium">
-              {user.first_name?.[0] || '?'}
-            </div>
-          )}
-        </div>
+        {user && (
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-800 flex items-center justify-center text-xs font-bold border border-cyan-400/30">
+            {user.first_name?.[0] || '?'}
+          </div>
+        )}
       </div>
     </header>
   );
