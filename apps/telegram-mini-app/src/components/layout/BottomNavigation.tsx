@@ -1,13 +1,7 @@
 import React from 'react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import { useTelegram } from '../../telegram/telegram';
-import {
-  Home,
-  BarChart3,
-  ArrowLeftRight,
-  Wallet,
-  User,
-} from 'lucide-react';
+import { Home, BarChart3, ArrowLeftRight, Wallet, User } from 'lucide-react';
 
 interface NavItem {
   to: string;
@@ -29,7 +23,7 @@ export const BottomNavigation: React.FC = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#0a0a0f]/95 backdrop-blur shrink-0 pb-safe">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-blue-500/20 bg-[#050510]/95 backdrop-blur-xl shrink-0 pb-safe">
       <div className="flex items-center justify-around h-16 px-1">
         {items.map((item) => {
           const isActive =
@@ -40,7 +34,9 @@ export const BottomNavigation: React.FC = () => {
               key={item.to}
               to={item.to}
               className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-xl transition-all min-w-[56px] ${
-                isActive ? 'text-violet-400' : 'text-white/50 hover:text-white/80'
+                isActive
+                  ? 'text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]'
+                  : 'text-white/40 hover:text-white/70'
               }`}
               onClick={() => haptic.light()}
             >
