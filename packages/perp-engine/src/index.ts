@@ -18,3 +18,5 @@ export {
   GmxAdapter,
   DriftAdapter,
 } from './adapters';
+
+export { registerAllPerpAdapters } from './register';
