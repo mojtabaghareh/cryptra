@@ -1,6 +1,15 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { swapService, jupiterAdapter, oneInchAdapter } from '@cryptra/swap-engine';
+import {
+  swapService,
+  ALL_SWAP_ADAPTERS,
+  jupiterAdapter,
+  oneInchAdapter,
+  uniswapAdapter,
+  pancakeSwapAdapter,
+  kyberAdapter,
+  stonfiAdapter,
+} from '@cryptra/swap-engine';
 import { requireAuth } from '../middleware/auth';
 import { AppError, ErrorCodes } from '@cryptra/core';
 import { prisma } from '@cryptra/database';
@@ -10,11 +19,33 @@ import {
   releaseIdempotencyKey,
 } from '@cryptra/security';
 
-swapService.registerAdapter(jupiterAdapter);
-swapService.registerAdapter(oneInchAdapter);
+// Register every adapter once (idempotent if already registered)
+for (const a of ALL_SWAP_ADAPTERS) {
+  swapService.registerAdapter(a);
+}
+
+const adapterById = new Map(
+  [
+    jupiterAdapter,
+    oneInchAdapter,
+    uniswapAdapter,
+    pancakeSwapAdapter,
+    kyberAdapter,
+    stonfiAdapter,
+  ].map((a) => [a.id, a]),
+);
 
 export async function swapRoutes(app: FastifyInstance) {
   app.addHook('preHandler', requireAuth);
+
+  app.get('/protocols', async () => ({
+    success: true,
+    data: ALL_SWAP_ADAPTERS.map((a) => ({
+      id: a.id,
+      name: a.name,
+      chains: a.supportedChains,
+    })),
+  }));
 
   app.post('/quote', async (request) => {
     const body = z
@@ -25,6 +56,7 @@ export async function swapRoutes(app: FastifyInstance) {
         fromChain: z.string().min(1),
         toChain: z.string().min(1),
         slippageBps: z.number().int().min(1).max(5000).optional(),
+        preferredProtocol: z.string().optional(),
       })
       .safeParse(request.body);
 
@@ -75,16 +107,19 @@ export async function swapRoutes(app: FastifyInstance) {
       });
     }
 
-    const protocol = (swap.protocol ?? 'jupiter').toLowerCase();
+    const protocol = (swap.protocol ?? '').toLowerCase();
+    const adapter = adapterById.get(protocol) ?? adapterById.get(protocol.replace('oneinch', '1inch'));
+
+    if (!adapter?.buildTransaction) {
+      throw new AppError({
+        code: ErrorCodes.SWAP_QUOTE_FAILED,
+        message: `Adapter ${protocol} does not support buildTransaction`,
+      });
+    }
 
     let built: unknown;
 
-    if (protocol === 'jupiter') {
-      built = await jupiterAdapter.buildTransaction!({
-        quote: swap.route,
-        userAddress: body.data.userAddress,
-      });
-    } else if (protocol === '1inch' || protocol === 'oneinch') {
+    if (protocol === '1inch' || protocol === 'oneinch') {
       built = await oneInchAdapter.buildTransaction!({
         quote: swap.route,
         userAddress: body.data.userAddress,
@@ -93,11 +128,11 @@ export async function swapRoutes(app: FastifyInstance) {
         fromAmount: swap.fromAmount,
         fromChain: swap.fromChain,
         slippageBps: swap.slippageBps ?? 50,
-      } as any);
+      } as never);
     } else {
-      throw new AppError({
-        code: ErrorCodes.SWAP_QUOTE_FAILED,
-        message: `Adapter ${protocol} does not support buildTransaction`,
+      built = await adapter.buildTransaction({
+        quote: swap.route,
+        userAddress: body.data.userAddress,
       });
     }
 
