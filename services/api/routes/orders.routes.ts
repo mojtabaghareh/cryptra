@@ -14,6 +14,10 @@ import {
   isGmxAgentConfigured,
   placeDriftOrder,
   isDriftAgentConfigured,
+  hyperliquidAdapter,
+  dydxAdapter,
+  gmxAdapter,
+  driftAdapter,
 } from '@cryptra/perp-engine';
 import {
   claimIdempotencyKey,
@@ -33,17 +37,49 @@ const placeOrderSchema = z.object({
   idempotencyKey: z.string().min(8).max(128).optional(),
 });
 
+const adapterMap = {
+  hyperliquid: hyperliquidAdapter,
+  dydx: dydxAdapter,
+  gmx: gmxAdapter,
+  drift: driftAdapter,
+} as const;
+
 export async function ordersRoutes(app: FastifyInstance) {
   app.addHook('preHandler', requireAuth);
 
-  app.get('/markets', async () => {
+  /** Official venue markets — ?protocol=hyperliquid|dydx|gmx|drift (default hyperliquid) */
+  app.get('/markets', async (request) => {
+    const q = z
+      .object({
+        protocol: z.enum(['hyperliquid', 'dydx', 'gmx', 'drift']).optional(),
+      })
+      .safeParse(request.query);
+
+    const protocol = q.success ? q.data.protocol ?? 'hyperliquid' : 'hyperliquid';
+    const adapter = adapterMap[protocol];
+
     try {
+      if (adapter.listMarkets) {
+        const markets = await adapter.listMarkets();
+        return { success: true, data: { protocol, markets } };
+      }
+      // Fallback HL majors
       const majors = await hyperliquidClient.getMajorPerps();
-      return { success: true, data: majors };
+      return {
+        success: true,
+        data: {
+          protocol: 'hyperliquid',
+          markets: majors.map((m) => ({
+            symbol: m.symbol,
+            midPrice: String(m.mid),
+            markPrice: String(m.mid),
+          })),
+        },
+      };
     } catch (e) {
       throw new AppError({
         code: ErrorCodes.EXTERNAL_SERVICE_ERROR,
-        message: e instanceof Error ? e.message : 'Hyperliquid unavailable',
+        message: e instanceof Error ? e.message : `${protocol} markets unavailable`,
       });
     }
   });
@@ -51,10 +87,30 @@ export async function ordersRoutes(app: FastifyInstance) {
   app.get('/venues', async () => ({
     success: true,
     data: [
-      { id: 'hyperliquid', live: isAgentConfigured(), signing: 'L1 EIP-712 phantom agent' },
-      { id: 'dydx', live: isDydxAgentConfigured(), signing: 'dYdX Chain LocalWallet (v4-client-js)' },
-      { id: 'gmx', live: isGmxAgentConfigured(), signing: 'Arbitrum ethers agent key' },
-      { id: 'drift', live: isDriftAgentConfigured(), signing: 'Solana keypair + Drift SDK' },
+      {
+        id: 'hyperliquid',
+        live: isAgentConfigured(),
+        signing: 'L1 EIP-712 phantom agent',
+        api: 'https://api.hyperliquid.xyz',
+      },
+      {
+        id: 'dydx',
+        live: isDydxAgentConfigured(),
+        signing: 'dYdX Chain LocalWallet (v4-client-js)',
+        api: 'https://indexer.dydx.trade/v4',
+      },
+      {
+        id: 'gmx',
+        live: isGmxAgentConfigured(),
+        signing: 'Arbitrum ethers agent key',
+        api: 'https://arbitrum-api.gmxinfra.io',
+      },
+      {
+        id: 'drift',
+        live: isDriftAgentConfigured(),
+        signing: 'Solana keypair + Drift SDK',
+        api: 'https://data.api.drift.trade',
+      },
     ],
   }));
 
