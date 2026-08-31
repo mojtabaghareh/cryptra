@@ -7,6 +7,9 @@ import { xpEngine } from '@cryptra/xp';
 import { achievementService } from '@cryptra/achievements';
 import { referralService } from '@cryptra/referral';
 import { hyperliquidClient, placeMarketOrder, isAgentConfigured } from '@cryptra/hyperliquid';
+import { placeDydxOrder, isDydxAgentConfigured } from '@cryptra/perp-engine/src/agents/dydxAgent';
+import { placeGmxOrder, isGmxAgentConfigured } from '@cryptra/perp-engine/src/agents/gmxAgent';
+import { placeDriftOrder, isDriftAgentConfigured } from '@cryptra/perp-engine/src/agents/driftAgent';
 import {
   claimIdempotencyKey,
   completeIdempotencyKey,
@@ -39,6 +42,32 @@ export async function ordersRoutes(app: FastifyInstance) {
       });
     }
   });
+
+  app.get('/venues', async () => ({
+    success: true,
+    data: [
+      {
+        id: 'hyperliquid',
+        live: isAgentConfigured(),
+        signing: 'L1 EIP-712 phantom agent',
+      },
+      {
+        id: 'dydx',
+        live: isDydxAgentConfigured(),
+        signing: 'dYdX Chain LocalWallet (v4-client-js)',
+      },
+      {
+        id: 'gmx',
+        live: isGmxAgentConfigured(),
+        signing: 'Arbitrum ethers agent key',
+      },
+      {
+        id: 'drift',
+        live: isDriftAgentConfigured(),
+        signing: 'Solana keypair + Drift SDK',
+      },
+    ],
+  }));
 
   app.get('/', async (request) => {
     const orders = await prisma.order.findMany({
@@ -100,40 +129,130 @@ export async function ordersRoutes(app: FastifyInstance) {
   });
 }
 
+async function dispatchVenue(data: z.infer<typeof placeOrderSchema>) {
+  const protocol = data.protocol.toLowerCase();
+  const isBuy = data.side === 'LONG';
+
+  if (protocol === 'hyperliquid') {
+    const agentResult = await placeMarketOrder({
+      symbol: data.symbol,
+      isBuy,
+      size: data.size,
+      leverage: data.leverage,
+    });
+    return {
+      fillPrice: agentResult.mid != null ? String(agentResult.mid) : data.price,
+      meta: {
+        source: agentResult.mode,
+        mid: agentResult.mid,
+        agent: isAgentConfigured() ? 'configured' : 'off',
+      },
+      agent: {
+        mode: agentResult.mode,
+        executed: agentResult.executed,
+        message: agentResult.message,
+        externalId: undefined as string | undefined,
+      },
+      exchangeResponse: agentResult.exchangeResponse,
+    };
+  }
+
+  if (protocol === 'dydx') {
+    const r = await placeDydxOrder({
+      symbol: data.symbol,
+      isBuy,
+      size: data.size,
+      price: data.price,
+      leverage: data.leverage,
+      type: data.type === 'LIMIT' ? 'LIMIT' : 'MARKET',
+    });
+    return {
+      fillPrice: r.mid != null ? String(r.mid) : data.price,
+      meta: { source: r.mode, mid: r.mid, agent: isDydxAgentConfigured() ? 'configured' : 'off' },
+      agent: {
+        mode: r.mode,
+        executed: r.executed,
+        message: r.message,
+        externalId: r.externalId,
+      },
+      exchangeResponse: r.exchangeResponse,
+    };
+  }
+
+  if (protocol === 'gmx') {
+    const r = await placeGmxOrder({
+      symbol: data.symbol,
+      isBuy,
+      size: data.size,
+      leverage: data.leverage,
+    });
+    return {
+      fillPrice: r.mid != null ? String(r.mid) : data.price,
+      meta: { source: r.mode, mid: r.mid, agent: isGmxAgentConfigured() ? 'configured' : 'off' },
+      agent: {
+        mode: r.mode,
+        executed: r.executed,
+        message: r.message,
+        externalId: r.externalId,
+      },
+      exchangeResponse: r.exchangeResponse,
+    };
+  }
+
+  if (protocol === 'drift') {
+    const r = await placeDriftOrder({
+      symbol: data.symbol,
+      isBuy,
+      size: data.size,
+      leverage: data.leverage,
+    });
+    return {
+      fillPrice: r.mid != null ? String(r.mid) : data.price,
+      meta: { source: r.mode, mid: r.mid, agent: isDriftAgentConfigured() ? 'configured' : 'off' },
+      agent: {
+        mode: r.mode,
+        executed: r.executed,
+        message: r.message,
+        externalId: r.externalId,
+      },
+      exchangeResponse: r.exchangeResponse,
+    };
+  }
+
+  throw new AppError({
+    code: ErrorCodes.VALIDATION_FAILED,
+    message: `Unknown protocol: ${data.protocol}. Use hyperliquid|dydx|gmx|drift`,
+  });
+}
+
 async function placeOrderCore(
   userId: string,
   data: z.infer<typeof placeOrderSchema>,
 ) {
   let fillPrice = data.price;
   let hlMeta: { source: string; mid?: number; agent?: string } | null = null;
-  let agentResult: Awaited<ReturnType<typeof placeMarketOrder>> | null = null;
+  let agentInfo: {
+    mode: string;
+    executed: boolean;
+    message: string;
+    externalId?: string;
+  } | null = null;
 
-  if (data.protocol === 'hyperliquid' && data.type === 'MARKET') {
+  if (data.type === 'MARKET') {
     try {
-      agentResult = await placeMarketOrder({
-        symbol: data.symbol,
-        isBuy: data.side === 'LONG',
-        size: data.size,
-        leverage: data.leverage,
-      });
-      if (agentResult.mid != null) {
-        fillPrice = String(agentResult.mid);
-      }
-      hlMeta = {
-        source: agentResult.mode,
-        mid: agentResult.mid,
-        agent: isAgentConfigured() ? 'configured' : 'off',
+      const dispatched = await dispatchVenue(data);
+      if (dispatched.fillPrice) fillPrice = dispatched.fillPrice;
+      hlMeta = dispatched.meta;
+      agentInfo = dispatched.agent;
+    } catch (e) {
+      if (e instanceof AppError) throw e;
+      // fall through with tracking
+      hlMeta = { source: 'error', agent: 'off' };
+      agentInfo = {
+        mode: 'skipped',
+        executed: false,
+        message: e instanceof Error ? e.message : 'venue dispatch failed',
       };
-    } catch {
-      try {
-        const mid = await hyperliquidClient.getMid(data.symbol.toUpperCase());
-        if (mid != null) {
-          fillPrice = String(mid);
-          hlMeta = { source: 'hyperliquid_mid', mid };
-        }
-      } catch {
-        /* ignore */
-      }
     }
   }
 
@@ -149,6 +268,7 @@ async function placeOrderCore(
       stopPrice: data.stopPrice,
       leverage: data.leverage,
       status: 'OPEN',
+      externalId: agentInfo?.externalId,
     },
   });
 
@@ -171,8 +291,8 @@ async function placeOrderCore(
     await prisma.order.update({
       where: { id: order.id },
       data: {
-        status: 'FILLED',
-        filledSize: data.size,
+        status: agentInfo?.executed ? 'FILLED' : 'OPEN',
+        filledSize: agentInfo?.executed ? data.size : undefined,
         avgFillPrice: fillPrice ?? data.price ?? '0',
       },
     });
@@ -183,8 +303,8 @@ async function placeOrderCore(
       userId,
       source: 'TRADE',
       amount: 40,
-      description: `${data.side} ${data.symbol}`,
-      metadata: { orderId: order.id, fillPrice, hlMode: agentResult?.mode },
+      description: `${data.side} ${data.symbol} @ ${data.protocol}`,
+      metadata: { orderId: order.id, fillPrice, mode: agentInfo?.mode },
     });
     await achievementService.tryUnlock(userId, 'FIRST_TRADE');
     await referralService.activate(userId);
@@ -198,17 +318,8 @@ async function placeOrderCore(
       order: { ...order, avgFillPrice: fillPrice },
       position,
       market: hlMeta,
-      agent: agentResult
-        ? {
-            mode: agentResult.mode,
-            executed: agentResult.executed,
-            message: agentResult.message,
-          }
-        : null,
-      note:
-        data.protocol === 'hyperliquid'
-          ? agentResult?.message ?? 'Filled at HL mid for tracking.'
-          : undefined,
+      agent: agentInfo,
+      note: agentInfo?.message,
     },
   };
 }
