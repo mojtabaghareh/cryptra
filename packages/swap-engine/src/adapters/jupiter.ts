@@ -1,12 +1,29 @@
-import type { ISwapAdapter } from '../types';
-
-const JUPITER_QUOTE_API = 'https://quote-api.jup.ag/v6/quote';
-const JUPITER_SWAP_API = 'https://quote-api.jup.ag/v6/swap';
+import type { ISwapAdapter, SwapBuildParams, SwapQuoteParams } from '../types';
 
 /**
- * Jupiter Aggregator adapter (Solana).
- * Uses the public Jupiter Quote API.
+ * Jupiter Swap API (official).
+ * Free tier:  https://lite-api.jup.ag/swap/v1/*
+ * Paid tier:  https://api.jup.ag/swap/v1/*  + header x-api-key (portal.jup.ag)
+ *
+ * Docs: https://dev.jup.ag / https://station.jup.ag/docs
+ * Old quote-api.jup.ag/v6 is deprecated.
  */
+
+function jupiterBase(): string {
+  const custom = process.env.JUPITER_API_URL?.trim();
+  if (custom) return custom.replace(/\/$/, '');
+  // Paid host when key present
+  if (process.env.JUPITER_API_KEY?.trim()) return 'https://api.jup.ag/swap/v1';
+  return 'https://lite-api.jup.ag/swap/v1';
+}
+
+function jupiterHeaders(): Record<string, string> {
+  const h: Record<string, string> = { Accept: 'application/json' };
+  const key = process.env.JUPITER_API_KEY?.trim();
+  if (key) h['x-api-key'] = key;
+  return h;
+}
+
 export class JupiterAdapter implements ISwapAdapter {
   readonly id = 'jupiter';
   readonly name = 'Jupiter';
@@ -14,9 +31,14 @@ export class JupiterAdapter implements ISwapAdapter {
 
   async isAvailable(): Promise<boolean> {
     try {
-      const res = await fetch('https://quote-api.jup.ag/v6/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&amount=1000000&slippageBps=50', {
-        method: 'GET',
-        signal: AbortSignal.timeout(5000),
+      const url =
+        `${jupiterBase()}/quote` +
+        `?inputMint=So11111111111111111111111111111111111111112` +
+        `&outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` +
+        `&amount=1000000&slippageBps=50`;
+      const res = await fetch(url, {
+        headers: jupiterHeaders(),
+        signal: AbortSignal.timeout(6000),
       });
       return res.ok;
     } catch {
@@ -24,20 +46,12 @@ export class JupiterAdapter implements ISwapAdapter {
     }
   }
 
-  async getQuote(params: {
-    fromToken: string;
-    toToken: string;
-    fromAmount: string;
-    fromChain: string;
-    toChain: string;
-    slippageBps: number;
-  }) {
+  async getQuote(params: SwapQuoteParams) {
     if (params.fromChain !== 'solana' || params.toChain !== 'solana') {
       throw new Error('Jupiter only supports Solana');
     }
 
-    // fromAmount is expected in smallest units (lamports / token decimals)
-    const url = new URL(JUPITER_QUOTE_API);
+    const url = new URL(`${jupiterBase()}/quote`);
     url.searchParams.set('inputMint', params.fromToken);
     url.searchParams.set('outputMint', params.toToken);
     url.searchParams.set('amount', params.fromAmount);
@@ -47,57 +61,78 @@ export class JupiterAdapter implements ISwapAdapter {
 
     const res = await fetch(url.toString(), {
       method: 'GET',
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(10_000),
+      headers: jupiterHeaders(),
+      signal: AbortSignal.timeout(12_000),
     });
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Jupiter quote failed: ${res.status} ${text}`);
+      throw new Error(`Jupiter quote failed: ${res.status} ${text.slice(0, 300)}`);
     }
 
     const data = (await res.json()) as {
       outAmount: string;
-      priceImpactPct?: number;
+      priceImpactPct?: string | number;
       routePlan?: unknown;
       otherAmountThreshold?: string;
+      contextSlot?: number;
     };
 
-    const priceImpactBps =
-      data.priceImpactPct != null
-        ? Math.round(Number(data.priceImpactPct) * 100)
-        : undefined;
+    if (!data.outAmount) throw new Error('Jupiter quote missing outAmount');
+
+    const impact =
+      data.priceImpactPct != null ? Math.round(Number(data.priceImpactPct) * 100) : undefined;
 
     return {
       toAmount: data.outAmount,
-      route: data,
-      priceImpactBps,
-      estimatedGas: undefined,
+      route: { protocol: 'jupiter', ...data },
+      priceImpactBps: impact,
     };
   }
 
-  async buildTransaction(params: {
-    quote: unknown;
-    userAddress: string;
-  }) {
-    const res = await fetch(JUPITER_SWAP_API, {
+  async buildTransaction(params: SwapBuildParams) {
+    const quoteResponse = params.quote as Record<string, unknown>;
+    // Strip our wrapper field if present
+    const { protocol: _p, ...rawQuote } = quoteResponse;
+
+    const res = await fetch(`${jupiterBase()}/swap`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers: {
+        ...jupiterHeaders(),
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
-        quoteResponse: params.quote,
+        quoteResponse: Object.keys(rawQuote).length ? rawQuote : quoteResponse,
         userPublicKey: params.userAddress,
         wrapAndUnwrapSol: true,
         dynamicComputeUnitLimit: true,
+        prioritizationFeeLamports: 'auto',
       }),
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(20_000),
     });
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Jupiter swap build failed: ${res.status} ${text}`);
+      throw new Error(`Jupiter swap build failed: ${res.status} ${text.slice(0, 300)}`);
     }
 
-    return res.json();
+    const body = (await res.json()) as {
+      swapTransaction?: string;
+      lastValidBlockHeight?: number;
+      prioritizationFeeLamports?: number;
+    };
+
+    if (!body.swapTransaction) {
+      throw new Error('Jupiter swap response missing swapTransaction');
+    }
+
+    return {
+      chain: 'solana',
+      swapTransaction: body.swapTransaction,
+      lastValidBlockHeight: body.lastValidBlockHeight,
+      prioritizationFeeLamports: body.prioritizationFeeLamports,
+      encoding: 'base64',
+    };
   }
 }
 
