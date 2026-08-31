@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@cryptra/config": "workspace:*"
+    "@cryptra/config": "workspace:*",
+    "ethers": "^6.13.4"
   },
   "devDependencies": {
     "typescript": "^5.5.4"
