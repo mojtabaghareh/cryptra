@@ -10,8 +10,7 @@ import {
   runHealthChecks,
   alertError,
 } from '@cryptra/monitoring';
-import { registerAllSwapAdapters } from '@cryptra/swap-engine/src/register';
-import { registerAllPerpAdapters } from '@cryptra/perp-engine/src/register';
+import { registerAllSwapAdapters } from '@cryptra/swap-engine';
 import { registerInfrastructureHealthChecks } from './health/register';
 import { startHealthWatchdog } from './health/watchdog';
 import { assertProductionSecurity } from './security/assertProduction';
@@ -38,12 +37,10 @@ import { perpRoutes } from './routes/perp.routes';
 assertProductionSecurity();
 registerInfrastructureHealthChecks();
 
-// Wire DEX + perp adapters once at process start
 try {
   registerAllSwapAdapters();
-  registerAllPerpAdapters();
 } catch (err) {
-  console.error('[api] adapter registration failed', err);
+  console.error('[api] swap adapter registration failed', err);
 }
 
 function resolveCorsOrigin(): boolean | string[] {
