@@ -20,3 +20,7 @@ export {
 } from './adapters';
 
 export { registerAllPerpAdapters } from './register';
+
+export { placeDydxOrder, isDydxAgentConfigured } from './agents/dydxAgent';
+export { placeGmxOrder, isGmxAgentConfigured } from './agents/gmxAgent';
+export { placeDriftOrder, isDriftAgentConfigured } from './agents/driftAgent';
