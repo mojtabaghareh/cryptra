@@ -1,12 +1,8 @@
 import type { IPerpAdapter, OrderSide, OrderType } from '../types';
+import { placeDriftOrder, isDriftAgentConfigured } from '../agents/driftAgent';
 
 const DATA_API = process.env.DRIFT_DATA_API || 'https://data.api.drift.trade';
 
-/**
- * Drift Protocol (Solana perps).
- * Market data via Drift data API; orders need @drift-labs/sdk + Phantom.
- * https://docs.drift.trade/
- */
 export class DriftAdapter implements IPerpAdapter {
   readonly id = 'drift';
   readonly name = 'Drift';
@@ -23,7 +19,6 @@ export class DriftAdapter implements IPerpAdapter {
   }
 
   async getMarkPrice(symbol: string): Promise<string> {
-    // Try markets endpoint variants
     const res = await fetch(`${DATA_API}/market/${encodeURIComponent(symbol)}`, {
       signal: AbortSignal.timeout(8000),
     }).catch(() => null);
@@ -34,7 +29,6 @@ export class DriftAdapter implements IPerpAdapter {
       if (px != null) return String(px);
     }
 
-    // Fallback: oracle-ish from contracts list
     const listRes = await fetch(`${DATA_API}/contracts`, {
       signal: AbortSignal.timeout(8000),
     });
@@ -52,7 +46,7 @@ export class DriftAdapter implements IPerpAdapter {
     throw new Error(`Drift: no price for ${symbol}`);
   }
 
-  async placeOrder(_params: {
+  async placeOrder(params: {
     symbol: string;
     side: OrderSide;
     type: OrderType;
@@ -62,11 +56,32 @@ export class DriftAdapter implements IPerpAdapter {
     leverage: number;
     userAddress?: string;
   }): Promise<{ externalId: string; status: string }> {
-    throw new Error(
-      'Drift orders require @drift-labs/sdk signed by Phantom on Solana. ' +
-        'Server exposes market data only until client signing is wired.',
-    );
+    const result = await placeDriftOrder({
+      symbol: params.symbol,
+      isBuy: params.side === 'LONG',
+      size: params.size,
+      leverage: params.leverage,
+      reduceOnly: false,
+    });
+
+    if (result.executed) {
+      return {
+        externalId: result.externalId || `drift-${Date.now()}`,
+        status: 'filled',
+      };
+    }
+
+    if (result.mode === 'tracking_only') {
+      return { externalId: `drift-track-${Date.now()}`, status: 'open' };
+    }
+
+    if (result.externalId) {
+      return { externalId: result.externalId, status: 'open' };
+    }
+
+    throw new Error(result.message || 'Drift order failed');
   }
 }
 
 export const driftAdapter = new DriftAdapter();
+export { isDriftAgentConfigured };
