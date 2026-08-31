@@ -1,24 +1,22 @@
-import { getConfig } from '@cryptra/config';
-import type { IPerpAdapter, OrderSide, OrderType } from '../types';
+import {
+  hyperliquidClient,
+  placeMarketOrder,
+  isAgentConfigured,
+} from '@cryptra/hyperliquid';
+import type { IPerpAdapter, OrderSide, OrderType, PerpMarketSnapshot } from '../types';
 
 /**
- * Hyperliquid adapter.
- * Uses the public REST API. Signing of orders must be done client-side
- * or via a secure signer service — this adapter focuses on market data
- * and order placement structure.
- *
- * Docs: https://hyperliquid.gitbook.io/hyperliquid-docs/
+ * Hyperliquid — official public API
+ * Info:  POST https://api.hyperliquid.xyz/info
+ * Exchange: POST https://api.hyperliquid.xyz/exchange (signed L1 actions)
+ * Docs: https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api
  */
 export class HyperliquidAdapter implements IPerpAdapter {
   readonly id = 'hyperliquid';
   readonly name = 'Hyperliquid';
 
   private get baseUrl(): string {
-    try {
-      return getConfig().HYPERLIQUID_API_URL;
-    } catch {
-      return 'https://api.hyperliquid.xyz';
-    }
+    return process.env.HYPERLIQUID_API_URL?.trim() || 'https://api.hyperliquid.xyz';
   }
 
   async isAvailable(): Promise<boolean> {
@@ -27,7 +25,7 @@ export class HyperliquidAdapter implements IPerpAdapter {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'meta' }),
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(6000),
       });
       return res.ok;
     } catch {
@@ -36,23 +34,40 @@ export class HyperliquidAdapter implements IPerpAdapter {
   }
 
   async getMarkPrice(symbol: string): Promise<string> {
-    const res = await fetch(`${this.baseUrl}/info`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'allMids' }),
-      signal: AbortSignal.timeout(8000),
+    const mid = await hyperliquidClient.getMid(symbol.toUpperCase());
+    if (mid == null) {
+      // Fallback metaAndAssetCtxs
+      const { mids } = await hyperliquidClient.getMetaAndAssetCtxs();
+      const px = mids[symbol.toUpperCase()];
+      if (px == null) throw new Error(`Hyperliquid: no mid for ${symbol}`);
+      return String(px);
+    }
+    return String(mid);
+  }
+
+  async listMarkets(): Promise<PerpMarketSnapshot[]> {
+    const { universe, mids, assetCtxs } = await hyperliquidClient.getMetaAndAssetCtxs();
+    return universe.map((u, i) => {
+      const ctx = (assetCtxs[i] || {}) as {
+        markPx?: string;
+        midPx?: string;
+        oraclePx?: string;
+        funding?: string;
+        openInterest?: string;
+        dayNtlVlm?: string;
+      };
+      return {
+        symbol: u.name,
+        markPrice: ctx.markPx || (mids[u.name] != null ? String(mids[u.name]) : undefined),
+        midPrice: ctx.midPx || (mids[u.name] != null ? String(mids[u.name]) : undefined),
+        indexPrice: ctx.oraclePx,
+        fundingRate: ctx.funding,
+        openInterest: ctx.openInterest,
+        maxLeverage: u.maxLeverage,
+        volume24h: ctx.dayNtlVlm,
+        raw: { meta: u, ctx },
+      };
     });
-
-    if (!res.ok) {
-      throw new Error(`Hyperliquid allMids failed: ${res.status}`);
-    }
-
-    const data = (await res.json()) as Record<string, string>;
-    const price = data[symbol];
-    if (!price) {
-      throw new Error(`No mark price for symbol ${symbol}`);
-    }
-    return price;
   }
 
   async placeOrder(params: {
@@ -64,39 +79,41 @@ export class HyperliquidAdapter implements IPerpAdapter {
     stopPrice?: string;
     leverage: number;
     userAddress?: string;
-  }): Promise<{ externalId: string; status: string }> {
-    // Hyperliquid requires EIP-712 signed payloads.
-    // In production this should go through a secure signing service.
-    // Here we structure the call and return a clear error if signing is not available.
+  }): Promise<{ externalId: string; status: string; message?: string }> {
+    const result = await placeMarketOrder({
+      symbol: params.symbol,
+      isBuy: params.side === 'LONG',
+      size: params.size,
+      leverage: params.leverage,
+    });
 
-    if (!params.userAddress) {
-      throw new Error(
-        'Hyperliquid requires a user address and signed payload. ' +
-          'Sign the order on the client or via a signer service, then submit.',
-      );
+    if (result.executed) {
+      return {
+        externalId: `hl-live-${Date.now()}`,
+        status: 'filled',
+        message: result.message,
+      };
     }
 
-    // Placeholder for the actual exchange endpoint
-    // Real implementation needs the signed action body.
+    // tracking_only still records local order with mid
+    if (result.mode === 'tracking_only') {
+      return {
+        externalId: `hl-track-${Date.now()}`,
+        status: 'open',
+        message: result.message,
+      };
+    }
+
     throw new Error(
-      'Hyperliquid order signing is not configured on the server. ' +
-        'Use client-side signing and submit the signed payload.',
+      result.message ||
+        (isAgentConfigured()
+          ? 'Hyperliquid exchange rejected order'
+          : 'Set HYPERLIQUID_AGENT_PRIVATE_KEY for live HL orders'),
     );
   }
 
-  async getMeta() {
-    const res = await fetch(`${this.baseUrl}/info`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'meta' }),
-      signal: AbortSignal.timeout(8000),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Hyperliquid meta failed: ${res.status}`);
-    }
-
-    return res.json();
+  async getPosition(_symbol: string, userAddress: string): Promise<unknown> {
+    return hyperliquidClient.getClearinghouseState(userAddress);
   }
 }
 
