@@ -11,7 +11,8 @@ import {
   type SwapQuoteResult,
 } from '../../lib/api';
 import { signAndSendJupiterSwap } from '../../lib/solana';
-import { sendOneInchTransaction } from '../../lib/ethereum';
+import { sendEvmSwapTransaction } from '../../lib/ethereum';
+import { executeSwapEndToEnd } from '../../lib/executeSwap';
 
 const PAIRS = [
   {
@@ -22,7 +23,9 @@ const PAIRS = [
     fromToken: 'So11111111111111111111111111111111111111112',
     toToken: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
     decimals: 9,
-    unit: 'SOL',
+    payUnit: 'SOL',
+    receiveUnit: 'USDC',
+    wallet: 'phantom' as const,
   },
   {
     id: 'eth-usdc',
@@ -32,11 +35,31 @@ const PAIRS = [
     fromToken: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
     toToken: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
     decimals: 18,
-    unit: 'ETH',
+    payUnit: 'ETH',
+    receiveUnit: 'USDC',
+    wallet: 'evm' as const,
+  },
+  {
+    id: 'usdc-eth',
+    label: 'USDC → ETH',
+    fromChain: 'ethereum',
+    toChain: 'ethereum',
+    fromToken: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+    toToken: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    decimals: 6,
+    payUnit: 'USDC',
+    receiveUnit: 'ETH',
+    wallet: 'evm' as const,
   },
 ] as const;
 
-const PERP_SYMBOLS = ['BTC', 'ETH', 'SOL'] as const;
+const PERP_SYMBOLS = ['BTC', 'ETH', 'SOL', 'DOGE', 'ARB'] as const;
+const PERP_PROTOCOLS = [
+  { id: 'hyperliquid', label: 'Hyperliquid' },
+  { id: 'dydx', label: 'dYdX' },
+  { id: 'gmx', label: 'GMX' },
+  { id: 'drift', label: 'Drift' },
+] as const;
 
 const inputStyle: CSSProperties = {
   width: '100%',
@@ -58,24 +81,25 @@ export function Trade() {
   const token = useSessionStore((s) => s.token);
 
   const [tab, setTab] = useState<'swap' | 'perp'>('swap');
-  const [pairId, setPairId] = useState<(typeof PAIRS)[number]['id']>('eth-usdc');
-  const [fromAmount, setFromAmount] = useState('100');
+  const [pairId, setPairId] = useState<(typeof PAIRS)[number]['id']>('sol-usdc');
+  const [fromAmount, setFromAmount] = useState('0.05');
   const [slippageBps, setSlippageBps] = useState(50);
   const [quote, setQuote] = useState<SwapQuoteResult | null>(null);
   const [builtTx, setBuiltTx] = useState<unknown>(null);
   const [txHash, setTxHash] = useState('');
   const [loading, setLoading] = useState(false);
+  const [statusLine, setStatusLine] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [perpSide, setPerpSide] = useState<'LONG' | 'SHORT'>('LONG');
   const [perpSymbol, setPerpSymbol] = useState<(typeof PERP_SYMBOLS)[number]>('ETH');
+  const [perpProtocol, setPerpProtocol] = useState<string>('hyperliquid');
   const [perpSize, setPerpSize] = useState('');
   const [leverage, setLeverage] = useState(5);
   const [hlMids, setHlMids] = useState<Record<string, number>>({});
 
   const pair = PAIRS.find((p) => p.id === pairId)!;
-  const demoPrice = pairId === 'eth-usdc' ? 3254 : 142.56;
 
   useEffect(() => {
     if (!token || tab !== 'perp') return;
@@ -91,13 +115,53 @@ export function Trade() {
         for (const row of res.data) map[row.symbol] = row.mid;
         setHlMids(map);
       } catch {
-        /* non-blocking */
+        /* ignore */
       }
     })();
     return () => {
       cancelled = true;
     };
   }, [token, tab]);
+
+  async function handleSwapNow() {
+    setError(null);
+    setMessage(null);
+    setStatusLine(null);
+    if (!token) {
+      setError('Open Cryptra inside Telegram so session JWT is set.');
+      return;
+    }
+    if (!isConnected || !walletAddress) {
+      setError('Connect Phantom (SOL) or MetaMask/Trust (ETH) first.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await executeSwapEndToEnd({
+        token,
+        walletAddress,
+        walletProvider,
+        fromToken: pair.fromToken,
+        toToken: pair.toToken,
+        fromAmountHuman: fromAmount,
+        decimals: pair.decimals,
+        fromChain: pair.fromChain,
+        toChain: pair.toChain,
+        slippageBps,
+        onStatus: (s) => setStatusLine(s),
+      });
+      setQuote(result.quote);
+      setTxHash(result.txHash);
+      setMessage(
+        `✓ Real swap submitted · ${result.protocol} · ${result.status} · tx ${result.txHash.slice(0, 14)}…`,
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Swap failed');
+    } finally {
+      setLoading(false);
+      setStatusLine(null);
+    }
+  }
 
   async function handleQuote() {
     setError(null);
@@ -106,7 +170,7 @@ export function Trade() {
     setBuiltTx(null);
     setTxHash('');
     if (!token) {
-      setError('Open from Telegram for live quotes (session required).');
+      setError('Telegram session required for live quotes');
       return;
     }
     if (!fromAmount || Number(fromAmount) <= 0) {
@@ -115,18 +179,26 @@ export function Trade() {
     }
     setLoading(true);
     try {
-      const raw = String(Math.floor(Number(fromAmount) * 10 ** pair.decimals));
+      const raw = String(
+        BigInt(Math.floor(Number(fromAmount) * 10 ** Math.min(pair.decimals, 8))) *
+          10n ** BigInt(Math.max(0, pair.decimals - 8)),
+      );
+      // Prefer precise conversion via string path for display quote only
+      const [i, f = ''] = fromAmount.split('.');
+      const frac = (f + '0'.repeat(pair.decimals)).slice(0, pair.decimals);
+      const precise = (BigInt(i || '0') * 10n ** BigInt(pair.decimals) + BigInt(frac || '0')).toString();
+
       const res = await requestSwapQuote(token, {
         fromToken: pair.fromToken,
         toToken: pair.toToken,
-        fromAmount: raw,
+        fromAmount: precise !== '0' ? precise : raw,
         fromChain: pair.fromChain,
         toChain: pair.toChain,
         slippageBps,
       });
       if (res.success) {
         setQuote(res.data);
-        setMessage(`Quote via ${res.data.protocol}`);
+        setMessage(`Best route: ${res.data.protocol}`);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Quote failed');
@@ -136,17 +208,13 @@ export function Trade() {
   }
 
   async function handleBuild() {
-    if (!token || !quote) return;
-    if (!walletAddress) {
-      setError('Connect a wallet address first');
-      return;
-    }
+    if (!token || !quote || !walletAddress) return;
     setLoading(true);
     setError(null);
     try {
       const res = await buildSwapTx(token, { quoteId: quote.quoteId, userAddress: walletAddress });
       setBuiltTx(res.data.transaction);
-      setMessage(`Transaction built (${res.data.protocol}).`);
+      setMessage(`Tx built (${res.data.protocol}) — confirm in wallet next`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Build failed');
     } finally {
@@ -162,25 +230,20 @@ export function Trade() {
     setLoading(true);
     setError(null);
     try {
-      let hash: string;
       const protocol = quote?.protocol?.toLowerCase() ?? '';
+      let hash: string;
       if (protocol.includes('jupiter') || pair.fromChain === 'solana') {
-        if (walletProvider !== 'phantom') {
-          setError('Connect Phantom for Solana swaps');
-          setLoading(false);
-          return;
-        }
+        if (walletProvider !== 'phantom') throw new Error('Connect Phantom for Solana');
         hash = await signAndSendJupiterSwap(builtTx);
       } else {
-        if (walletProvider !== 'metamask') {
-          setError('Connect MetaMask for EVM swaps');
-          setLoading(false);
-          return;
-        }
-        hash = await sendOneInchTransaction(builtTx, walletAddress);
+        hash = await sendEvmSwapTransaction(builtTx, walletAddress, pair.fromChain === 'ethereum' ? 1 : undefined);
       }
       setTxHash(hash);
-      setMessage(`Broadcast ✓ ${hash.slice(0, 16)}…`);
+      setMessage(`Broadcast on-chain ✓ ${hash.slice(0, 18)}…`);
+      if (token && quote) {
+        await executeSwap(token, { quoteId: quote.quoteId, txHash: hash });
+        setMessage((m) => `${m} · recorded on Cryptra`);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Sign/send failed');
     } finally {
@@ -188,33 +251,9 @@ export function Trade() {
     }
   }
 
-  async function handleExecute() {
-    if (!token || !quote) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await executeSwap(token, {
-        quoteId: quote.quoteId,
-        txHash: txHash.trim() || undefined,
-      });
-      setMessage(
-        `Swap ${res.data.status}` +
-          (res.data.txHash ? ` · tx ${res.data.txHash.slice(0, 12)}…` : '') +
-          ` · id ${res.data.swapId.slice(0, 8)}`,
-      );
-      setQuote(null);
-      setBuiltTx(null);
-      setTxHash('');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Execute failed');
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function handlePerp() {
     if (!token) {
-      setError('Authenticate inside Telegram first');
+      setError('Open inside Telegram first');
       return;
     }
     if (!perpSize) {
@@ -225,7 +264,7 @@ export function Trade() {
     setError(null);
     try {
       const res = await placeOrder(token, {
-        protocol: 'hyperliquid',
+        protocol: perpProtocol,
         symbol: perpSymbol,
         side: perpSide,
         type: 'MARKET',
@@ -233,15 +272,17 @@ export function Trade() {
         leverage,
       });
       const data = res.data as {
-        order?: { avgFillPrice?: string };
+        order?: { avgFillPrice?: string; id?: string };
         market?: { mid?: number };
+        agent?: { mode?: string; executed?: boolean; message?: string };
         note?: string;
       };
       const px = data.market?.mid ?? data.order?.avgFillPrice;
+      const live = data.agent?.executed ? 'LIVE on venue' : data.agent?.mode || 'tracked';
       setMessage(
-        `${perpSide} ${perpSymbol} · size ${perpSize} · fill ~${px ?? '?'}` +
-          (data.note ? ` · ${data.note.slice(0, 60)}…` : ''),
+        `${perpSide} ${perpSymbol} @ ${perpProtocol} · size ${perpSize} · ~${px ?? '?'} · ${live}`,
       );
+      if (data.note) setStatusLine(data.note.slice(0, 120));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Order failed');
     } finally {
@@ -254,29 +295,17 @@ export function Trade() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">Trade</h1>
-          <p className="text-xs text-white/45 mt-0.5">Swap · Perps · Smart route</p>
+          <p className="text-xs text-white/45 mt-0.5">Real on-chain swap · Perps</p>
         </div>
-        <div className="text-right">
-          <div className="text-sm font-semibold">ETH / USDT</div>
-          <div className="text-lg font-bold">${demoPrice.toLocaleString()}</div>
-          <div className="text-xs text-emerald-400">+2.14%</div>
-        </div>
+        {hlMids.ETH != null && (
+          <div className="text-right">
+            <div className="text-sm font-semibold">ETH</div>
+            <div className="text-lg font-bold">${hlMids.ETH.toLocaleString()}</div>
+          </div>
+        )}
       </div>
 
       <Card padded className="border-cyan-500/15">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-xs text-white/45">Chart preview</span>
-          <div className="flex gap-1 text-[10px] text-white/40">
-            {['1m', '5m', '15m', '1h', '4h', '1d'].map((t) => (
-              <span
-                key={t}
-                className={`px-1.5 py-0.5 rounded ${t === '1h' ? 'bg-blue-600/40 text-cyan-200' : ''}`}
-              >
-                {t}
-              </span>
-            ))}
-          </div>
-        </div>
         <div className="flex justify-center py-2">
           <Sparkline points={[30, 34, 32, 40, 38, 45, 42, 50, 48, 55]} positive />
         </div>
@@ -293,10 +322,7 @@ export function Trade() {
 
       {!token && (
         <Card padded>
-          <p className="text-sm text-white/60 mb-2">
-            Live quotes need Telegram session. UI works in demo mode.
-          </p>
-          <Badge variant="neutral">No JWT</Badge>
+          <p className="text-sm text-white/60">Open from Telegram Mini App for live quotes & orders.</p>
         </Card>
       )}
 
@@ -320,7 +346,7 @@ export function Trade() {
           </div>
 
           <div>
-            <label className="text-xs text-white/45">You Pay ({pair.unit === 'ETH' ? 'USDT' : pair.unit})</label>
+            <label className="text-xs text-white/45">You pay ({pair.payUnit})</label>
             <input
               value={fromAmount}
               onChange={(e) => setFromAmount(e.target.value)}
@@ -333,13 +359,9 @@ export function Trade() {
           <div className="text-center text-white/30 text-sm">↓</div>
 
           <div>
-            <label className="text-xs text-white/45">You Receive</label>
+            <label className="text-xs text-white/45">You receive ({pair.receiveUnit})</label>
             <div className="rounded-xl border border-blue-500/20 bg-[#0c0c1a] px-4 py-3 text-lg font-semibold">
-              {quote?.toAmount ??
-                (fromAmount && pairId === 'eth-usdc'
-                  ? (Number(fromAmount) / demoPrice).toFixed(4)
-                  : '—')}{' '}
-              <span className="text-sm text-white/40">{pair.unit}</span>
+              {quote?.toAmount ?? '—'}
             </div>
           </div>
 
@@ -365,46 +387,55 @@ export function Trade() {
           {isConnected && walletAddress && (
             <p className="text-[11px] text-white/40">
               {walletProvider} · {walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}
+              {pair.wallet === 'phantom' ? ' · need Phantom' : ' · need MetaMask/Trust'}
             </p>
           )}
 
-          <Button fullWidth disabled={loading || !fromAmount} onClick={() => void handleQuote()}>
-            {loading ? 'Loading…' : token ? '1. Get live quote' : 'Preview / Get quote'}
+          <Button fullWidth disabled={loading || !fromAmount} onClick={() => void handleSwapNow()}>
+            {loading ? statusLine || 'Working…' : '⚡ Swap Now (real on-chain)'}
           </Button>
 
-          {quote && (
-            <div className="space-y-2 text-sm">
-              <Badge variant="success">{quote.protocol}</Badge>
-              <div>
-                Fee: {quote.feePercent}% (~{quote.feeAmount})
-              </div>
-              <Button fullWidth variant="secondary" disabled={loading} onClick={() => void handleBuild()}>
-                2. Build transaction
+          <p className="text-[10px] text-center text-white/35">
+            Jupiter · 1inch · Uniswap · Pancake · Kyber · STON.fi — best quote wins
+          </p>
+
+          <details className="text-xs text-white/40">
+            <summary className="cursor-pointer">Advanced steps</summary>
+            <div className="mt-2 space-y-2">
+              <Button fullWidth size="sm" variant="secondary" disabled={loading} onClick={() => void handleQuote()}>
+                1. Quote only
               </Button>
-              {builtTx != null && (
-                <Button fullWidth disabled={loading} onClick={() => void handleSignAndSend()}>
-                  3. Sign & send
-                </Button>
+              {quote && (
+                <>
+                  <Badge variant="success">{quote.protocol}</Badge>
+                  <Button fullWidth size="sm" variant="secondary" disabled={loading} onClick={() => void handleBuild()}>
+                    2. Build
+                  </Button>
+                  {builtTx != null && (
+                    <Button fullWidth size="sm" disabled={loading} onClick={() => void handleSignAndSend()}>
+                      3. Sign & send
+                    </Button>
+                  )}
+                  {txHash && <code className="block break-all text-[10px]">{txHash}</code>}
+                </>
               )}
-              <input
-                value={txHash}
-                onChange={(e) => setTxHash(e.target.value)}
-                placeholder="tx hash"
-                style={{ ...inputStyle, fontSize: 13, marginBottom: 0 }}
-              />
-              <Button fullWidth variant="outline" disabled={loading} onClick={() => void handleExecute()}>
-                4. Record on Cryptra
-              </Button>
             </div>
-          )}
-
-          <Button fullWidth className="mt-1" disabled={loading}>
-            ⚡ Swap Now
-          </Button>
-          <p className="text-[10px] text-center text-white/35">Route fee ~0.09%</p>
+          </details>
         </Card>
       ) : (
         <Card padded className="space-y-3">
+          <div className="flex gap-2 flex-wrap">
+            {PERP_PROTOCOLS.map((p) => (
+              <Button
+                key={p.id}
+                size="sm"
+                variant={perpProtocol === p.id ? 'primary' : 'secondary'}
+                onClick={() => setPerpProtocol(p.id)}
+              >
+                {p.label}
+              </Button>
+            ))}
+          </div>
           <div className="flex gap-2 flex-wrap">
             {PERP_SYMBOLS.map((s) => (
               <Button
@@ -414,7 +445,7 @@ export function Trade() {
                 onClick={() => setPerpSymbol(s)}
               >
                 {s}
-                {hlMids[s] != null ? ` $${hlMids[s].toLocaleString()}` : ''}
+                {hlMids[s] != null ? ` $${Number(hlMids[s]).toLocaleString()}` : ''}
               </Button>
             ))}
           </div>
@@ -452,9 +483,14 @@ export function Trade() {
           <Button fullWidth disabled={loading || !perpSize} onClick={() => void handlePerp()}>
             {loading ? 'Submitting…' : `Open ${perpSide} ${perpSymbol}`}
           </Button>
+          <p className="text-[10px] text-white/35">
+            Hyperliquid live needs agent key on server or client-signed action. Others track + record on Cryptra until
+            venue SDK signing is enabled.
+          </p>
         </Card>
       )}
 
+      {statusLine && <p className="text-xs text-cyan-300/80">{statusLine}</p>}
       {message && <p className="text-sm text-emerald-400">{message}</p>}
       {error && <p className="text-sm text-red-400">{error}</p>}
     </div>
