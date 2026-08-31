@@ -5,6 +5,7 @@ export type {
   PlaceOrderResult,
   OrderSide,
   OrderType,
+  PerpMarketSnapshot,
 } from './types';
 
 export {
