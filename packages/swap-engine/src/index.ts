@@ -22,3 +22,5 @@ export {
   KyberAdapter,
   StonfiAdapter,
 } from './adapters';
+
+export { registerAllSwapAdapters } from './register';
