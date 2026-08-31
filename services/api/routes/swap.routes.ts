@@ -19,7 +19,6 @@ import {
   releaseIdempotencyKey,
 } from '@cryptra/security';
 
-// Register every adapter once (idempotent if already registered)
 for (const a of ALL_SWAP_ADAPTERS) {
   swapService.registerAdapter(a);
 }
@@ -44,6 +43,7 @@ export async function swapRoutes(app: FastifyInstance) {
       id: a.id,
       name: a.name,
       chains: a.supportedChains,
+      officialApi: true,
     })),
   }));
 
@@ -69,9 +69,29 @@ export async function swapRoutes(app: FastifyInstance) {
     }
 
     const userId = request.user!.userId;
+    const data = body.data;
+
+    // Preferred single protocol path (still official adapter)
+    if (data.preferredProtocol) {
+      const id = data.preferredProtocol.toLowerCase().replace('oneinch', '1inch');
+      const adapter = adapterById.get(id);
+      if (!adapter) {
+        throw new AppError({
+          code: ErrorCodes.VALIDATION_FAILED,
+          message: `Unknown protocol: ${data.preferredProtocol}`,
+        });
+      }
+      if (!adapter.supportedChains.includes(data.fromChain)) {
+        throw new AppError({
+          code: ErrorCodes.VALIDATION_FAILED,
+          message: `${adapter.name} does not support chain ${data.fromChain}`,
+        });
+      }
+    }
+
     const quote = await swapService.getQuote({
       userId,
-      ...body.data,
+      ...data,
     });
 
     return { success: true, data: quote };
@@ -107,8 +127,8 @@ export async function swapRoutes(app: FastifyInstance) {
       });
     }
 
-    const protocol = (swap.protocol ?? '').toLowerCase();
-    const adapter = adapterById.get(protocol) ?? adapterById.get(protocol.replace('oneinch', '1inch'));
+    const protocol = (swap.protocol ?? '').toLowerCase().replace('oneinch', '1inch');
+    const adapter = adapterById.get(protocol);
 
     if (!adapter?.buildTransaction) {
       throw new AppError({
@@ -117,24 +137,16 @@ export async function swapRoutes(app: FastifyInstance) {
       });
     }
 
-    let built: unknown;
-
-    if (protocol === '1inch' || protocol === 'oneinch') {
-      built = await oneInchAdapter.buildTransaction!({
-        quote: swap.route,
-        userAddress: body.data.userAddress,
-        fromToken: swap.fromToken,
-        toToken: swap.toToken,
-        fromAmount: swap.fromAmount,
-        fromChain: swap.fromChain,
-        slippageBps: swap.slippageBps ?? 50,
-      } as never);
-    } else {
-      built = await adapter.buildTransaction({
-        quote: swap.route,
-        userAddress: body.data.userAddress,
-      });
-    }
+    const built = await adapter.buildTransaction({
+      quote: swap.route,
+      userAddress: body.data.userAddress,
+      fromToken: swap.fromToken,
+      toToken: swap.toToken,
+      fromAmount: swap.fromAmount,
+      fromChain: swap.fromChain,
+      toChain: swap.toChain,
+      slippageBps: swap.slippageBps ?? 50,
+    });
 
     return {
       success: true,
