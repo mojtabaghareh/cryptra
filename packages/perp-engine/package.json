@@ -28,6 +28,7 @@
     "@cryptra/xp": "workspace:*",
     "@cryptra/achievements": "workspace:*",
     "@cryptra/referral": "workspace:*",
+    "@cryptra/hyperliquid": "workspace:*",
     "ethers": "^6.13.4"
   },
   "optionalDependencies": {
