@@ -6,6 +6,7 @@ export interface SwapQuoteRequest {
   fromChain: string;
   toChain: string;
   slippageBps?: number; // default 50 = 0.5%
+  preferredProtocol?: string;
 }
 
 export interface SwapQuote {
@@ -28,7 +29,7 @@ export interface SwapQuote {
 export interface SwapExecuteRequest {
   userId: string;
   quoteId: string;
-  txHash?: string; // if user already signed
+  txHash?: string;
 }
 
 export interface SwapExecuteResult {
@@ -38,28 +39,42 @@ export interface SwapExecuteResult {
   errorMessage?: string;
 }
 
+export interface SwapQuoteParams {
+  fromToken: string;
+  toToken: string;
+  fromAmount: string;
+  fromChain: string;
+  toChain: string;
+  slippageBps: number;
+}
+
+export interface SwapQuoteResult {
+  toAmount: string;
+  route: unknown;
+  priceImpactBps?: number;
+  estimatedGas?: string;
+}
+
+/** Unified build input — adapters ignore fields they do not need. */
+export interface SwapBuildParams {
+  quote: unknown;
+  userAddress: string;
+  fromToken?: string;
+  toToken?: string;
+  fromAmount?: string;
+  fromChain?: string;
+  toChain?: string;
+  slippageBps?: number;
+}
+
 export interface ISwapAdapter {
   readonly id: string;
   readonly name: string;
   readonly supportedChains: string[];
 
   isAvailable(): Promise<boolean>;
-  getQuote(params: {
-    fromToken: string;
-    toToken: string;
-    fromAmount: string;
-    fromChain: string;
-    toChain: string;
-    slippageBps: number;
-  }): Promise<{
-    toAmount: string;
-    route: unknown;
-    priceImpactBps?: number;
-    estimatedGas?: string;
-  }>;
 
-  buildTransaction?(params: {
-    quote: unknown;
-    userAddress: string;
-  }): Promise<unknown>;
+  getQuote(params: SwapQuoteParams): Promise<SwapQuoteResult>;
+
+  buildTransaction?(params: SwapBuildParams): Promise<unknown>;
 }
