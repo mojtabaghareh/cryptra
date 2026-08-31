@@ -1,13 +1,9 @@
 import type { IPerpAdapter, OrderSide, OrderType } from '../types';
+import { placeDydxOrder, isDydxAgentConfigured } from '../agents/dydxAgent';
 
 const INDEXER =
   process.env.DYDX_INDEXER_URL || 'https://indexer.dydx.trade/v4';
 
-/**
- * dYdX v4 — public indexer for markets/oracle prices.
- * Order placement requires client-side wallet signing (dYdX Chain).
- * https://docs.dydx.exchange/
- */
 export class DydxAdapter implements IPerpAdapter {
   readonly id = 'dydx';
   readonly name = 'dYdX';
@@ -38,7 +34,7 @@ export class DydxAdapter implements IPerpAdapter {
     return px;
   }
 
-  async placeOrder(_params: {
+  async placeOrder(params: {
     symbol: string;
     side: OrderSide;
     type: OrderType;
@@ -48,11 +44,33 @@ export class DydxAdapter implements IPerpAdapter {
     leverage: number;
     userAddress?: string;
   }): Promise<{ externalId: string; status: string }> {
-    throw new Error(
-      'dYdX orders must be signed with a dYdX Chain wallet on the client. ' +
-        'Server only provides market data via indexer.',
-    );
+    const result = await placeDydxOrder({
+      symbol: params.symbol,
+      isBuy: params.side === 'LONG',
+      size: params.size,
+      price: params.price,
+      leverage: params.leverage,
+      type: params.type === 'LIMIT' ? 'LIMIT' : 'MARKET',
+    });
+
+    if (result.executed) {
+      return {
+        externalId: result.externalId || `dydx-${Date.now()}`,
+        status: 'filled',
+      };
+    }
+
+    // Tracking path still returns open so Cryptra records the attempt
+    if (result.mode === 'tracking_only') {
+      return {
+        externalId: `dydx-track-${Date.now()}`,
+        status: 'open',
+      };
+    }
+
+    throw new Error(result.message || 'dYdX order failed');
   }
 }
 
 export const dydxAdapter = new DydxAdapter();
+export { isDydxAgentConfigured };
