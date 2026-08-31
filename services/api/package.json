@@ -23,6 +23,7 @@
     "@cryptra/wallets": "workspace:*",
     "@cryptra/market-data": "workspace:*",
     "@cryptra/swap-engine": "workspace:*",
+    "@cryptra/perp-engine": "workspace:*",
     "@cryptra/hyperliquid": "workspace:*",
     "@cryptra/xp": "workspace:*",
     "@cryptra/levels": "workspace:*",
