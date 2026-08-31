@@ -1,17 +1,20 @@
 /**
- * Optional Hyperliquid agent wallet execution.
+ * Hyperliquid agent wallet execution with real L1 action signing.
  *
- * When HYPERLIQUID_AGENT_PRIVATE_KEY is unset, callers should only track mids.
- * When set, placeMarketOrder attempts a real exchange API call.
+ * Env:
+ *  - HYPERLIQUID_AGENT_PRIVATE_KEY  (required for live)
+ *  - HYPERLIQUID_API_URL            (default mainnet)
+ *  - HYPERLIQUID_IS_MAINNET         (default true; set "false" for testnet)
  *
- * Signing HL actions requires their specific L1 action format (msgpack + keccak).
- * This module implements a pragmatic path: if the official signing deps are
- * unavailable, it returns a structured skip so the rest of Cryptra still works.
- *
- * Docs: https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/exchange-endpoint
+ * Market orders are sent as aggressive IOC limits at mid ± slippage.
  */
 
 import { hyperliquidClient } from './client';
+import {
+  buildOrderAction,
+  buildUpdateLeverageAction,
+  signL1Action,
+} from './signing';
 
 export interface AgentOrderRequest {
   symbol: string;
@@ -19,6 +22,8 @@ export interface AgentOrderRequest {
   size: string;
   leverage?: number;
   reduceOnly?: boolean;
+  /** Max deviation from mid for IOC aggressive price, default 0.5% */
+  slippageBps?: number;
 }
 
 export interface AgentOrderResult {
@@ -27,6 +32,8 @@ export interface AgentOrderResult {
   mid?: number;
   exchangeResponse?: unknown;
   message: string;
+  signature?: { r: string; s: string; v: number };
+  nonce?: number;
 }
 
 function getAgentKey(): string | undefined {
@@ -39,13 +46,78 @@ export function isAgentConfigured(): boolean {
   return Boolean(getAgentKey());
 }
 
+function isMainnet(): boolean {
+  const v = process.env.HYPERLIQUID_IS_MAINNET?.trim().toLowerCase();
+  if (v === 'false' || v === '0') return false;
+  const url = process.env.HYPERLIQUID_API_URL || '';
+  if (url.includes('testnet')) return false;
+  return true;
+}
+
+function baseUrl(): string {
+  return process.env.HYPERLIQUID_API_URL || 'https://api.hyperliquid.xyz';
+}
+
+function aggressivePrice(mid: number, isBuy: boolean, slippageBps: number): string {
+  const mult = isBuy ? 1 + slippageBps / 10_000 : 1 - slippageBps / 10_000;
+  const px = mid * mult;
+  // HL expects string decimals without scientific notation
+  if (px >= 1000) return px.toFixed(1);
+  if (px >= 1) return px.toFixed(3);
+  if (px >= 0.01) return px.toFixed(5);
+  return px.toFixed(8);
+}
+
+async function postExchange(body: unknown): Promise<unknown> {
+  const res = await fetch(`${baseUrl()}/exchange`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(20_000),
+  });
+  const text = await res.text();
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(`HL exchange ${res.status}: ${text.slice(0, 200)}`);
+  }
+  if (!res.ok) {
+    throw new Error(`HL exchange ${res.status}: ${text.slice(0, 300)}`);
+  }
+  return json;
+}
+
+async function resolveAssetIndex(symbol: string): Promise<number | null> {
+  const { universe } = await hyperliquidClient.getMetaAndAssetCtxs();
+  const upper = symbol.toUpperCase();
+  const idx = universe.findIndex((u) => u.name.toUpperCase() === upper);
+  return idx >= 0 ? idx : null;
+}
+
+async function signAndPost(action: Record<string, unknown>, key: string) {
+  const nonce = Date.now();
+  const signature = await signL1Action({
+    privateKey: key,
+    action,
+    nonce,
+    isMainnet: isMainnet(),
+  });
+  const response = await postExchange({
+    action,
+    nonce,
+    signature,
+  });
+  return { nonce, signature, response };
+}
+
 /**
- * Place a market-style order via agent wallet when configured.
- * Otherwise returns tracking_only with live mid price.
+ * Place a market-style IOC order via agent wallet when configured.
  */
 export async function placeMarketOrder(req: AgentOrderRequest): Promise<AgentOrderResult> {
   const mid = await hyperliquidClient.getMid(req.symbol.toUpperCase());
   const key = getAgentKey();
+  const slippageBps = req.slippageBps ?? 50;
 
   if (!key) {
     return {
@@ -57,34 +129,68 @@ export async function placeMarketOrder(req: AgentOrderRequest): Promise<AgentOrd
     };
   }
 
-  const baseUrl =
-    process.env.HYPERLIQUID_API_URL || 'https://api.hyperliquid.xyz';
+  if (mid == null || !Number.isFinite(mid) || mid <= 0) {
+    return {
+      executed: false,
+      mode: 'skipped',
+      message: `No mid price for ${req.symbol}`,
+    };
+  }
 
-  // Live path: attempt exchange endpoint.
-  // Full EIP-712 / msgpack signing is environment-specific; we post a documented
-  // shape and surface the exchange error clearly if signature is incomplete.
   try {
     const assetId = await resolveAssetIndex(req.symbol);
     if (assetId == null) {
       return {
         executed: false,
         mode: 'skipped',
-        mid: mid ?? undefined,
+        mid,
         message: `Unknown HL asset: ${req.symbol}`,
       };
     }
 
-    // Without a full HL signer library, we do not invent signatures.
-    // Return explicit skip so operators enable a verified signer later.
+    // Optional leverage update first (best-effort)
+    if (req.leverage != null && req.leverage >= 1) {
+      try {
+        const levAction = buildUpdateLeverageAction({
+          assetIndex: assetId,
+          isCross: true,
+          leverage: Math.min(50, Math.floor(req.leverage)),
+        });
+        await signAndPost(levAction, key);
+      } catch (e) {
+        console.warn('[HL] updateLeverage failed (continuing to order)', e);
+      }
+    }
+
+    const price = aggressivePrice(mid, req.isBuy, slippageBps);
+    const action = buildOrderAction({
+      assetIndex: assetId,
+      isBuy: req.isBuy,
+      price,
+      size: req.size,
+      reduceOnly: req.reduceOnly ?? false,
+      tif: 'Ioc',
+    });
+
+    const { nonce, signature, response } = await signAndPost(action, key);
+
+    // HL returns { status: "ok", response: { type: "order", data: { statuses: [...] } } }
+    const status =
+      typeof response === 'object' && response && 'status' in response
+        ? String((response as { status: unknown }).status)
+        : 'unknown';
+
+    const ok = status === 'ok';
     return {
-      executed: false,
-      mode: 'skipped',
-      mid: mid ?? undefined,
-      message:
-        'Agent key detected but full Hyperliquid action signer is not bundled. ' +
-        'Mid tracked; wire @nktkas/hyperliquid or official SDK for live /exchange posts. ' +
-        `assetIndex=${assetId} size=${req.size} isBuy=${req.isBuy}`,
-      exchangeResponse: { baseUrl, assetId },
+      executed: ok,
+      mode: ok ? 'live' : 'skipped',
+      mid,
+      nonce,
+      signature,
+      exchangeResponse: response,
+      message: ok
+        ? `Live HL order posted · asset=${assetId} px=${price} sz=${req.size} side=${req.isBuy ? 'buy' : 'sell'}`
+        : `HL exchange rejected · ${JSON.stringify(response).slice(0, 200)}`,
     };
   } catch (e) {
     return {
@@ -94,11 +200,4 @@ export async function placeMarketOrder(req: AgentOrderRequest): Promise<AgentOrd
       message: e instanceof Error ? e.message : 'HL agent path failed',
     };
   }
-}
-
-async function resolveAssetIndex(symbol: string): Promise<number | null> {
-  const { universe } = await hyperliquidClient.getMetaAndAssetCtxs();
-  const upper = symbol.toUpperCase();
-  const idx = universe.findIndex((u) => u.name.toUpperCase() === upper);
-  return idx >= 0 ? idx : null;
 }
