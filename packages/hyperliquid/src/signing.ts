@@ -2,11 +2,9 @@
  * Hyperliquid L1 action signing (orders, cancels, leverage).
  * Spec: msgpack(action) + nonce_u64_be + vault_marker → keccak256 → EIP-712 Agent
  * Domain chainId is always 1337. Source "a" = mainnet, "b" = testnet.
- *
- * @see https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/exchange-endpoint
  */
 
-import { Wallet, keccak256, getBytes, Signature } from 'ethers';
+import { Wallet, keccak256, Signature, verifyTypedData } from 'ethers';
 import { msgpackEncode } from './msgpack';
 
 export interface HlSignature {
@@ -28,7 +26,6 @@ function concatBytes(...parts: Uint8Array[]): Uint8Array {
 
 function u64Be(n: number): Uint8Array {
   const buf = new Uint8Array(8);
-  // nonce is ms timestamp — fits in 53-bit JS number safely for decades
   let x = BigInt(Math.floor(n));
   for (let i = 7; i >= 0; i--) {
     buf[i] = Number(x & 0xffn);
@@ -47,9 +44,6 @@ function addressTo20(addr: string): Uint8Array {
   return out;
 }
 
-/**
- * connectionId = keccak256(msgpack(action) || nonce_be || vaultFlag[||vault][||expires])
- */
 export function createL1ActionHash(params: {
   action: Record<string, unknown>;
   nonce: number;
@@ -75,9 +69,6 @@ export function createL1ActionHash(params: {
   return keccak256(payload);
 }
 
-/**
- * Sign an L1 trading action with an agent/master private key.
- */
 export async function signL1Action(params: {
   privateKey: string;
   action: Record<string, unknown>;
@@ -125,9 +116,6 @@ export async function signL1Action(params: {
   };
 }
 
-/**
- * Build a market-style IOC order action (field order fixed for hashing).
- */
 export function buildOrderAction(params: {
   assetIndex: number;
   isBuy: boolean;
@@ -136,8 +124,6 @@ export function buildOrderAction(params: {
   reduceOnly?: boolean;
   tif?: 'Ioc' | 'Gtc' | 'Alo';
 }): Record<string, unknown> {
-  // Key order must stay: type → orders → grouping
-  // Order wire key order: a, b, p, s, r, t
   return {
     type: 'order',
     orders: [
@@ -172,8 +158,6 @@ export function recoverSignerAddress(
   signature: HlSignature,
   isMainnet: boolean,
 ): string {
-  // Optional verification helper — uses ethers verifyTypedData
-  const { verifyTypedData } = require('ethers') as typeof import('ethers');
   const domain = {
     name: 'Exchange',
     version: '1',
@@ -193,6 +177,3 @@ export function recoverSignerAddress(
   const compact = Signature.from({ r: signature.r, s: signature.s, v: signature.v }).serialized;
   return verifyTypedData(domain, types, message, compact);
 }
-
-// silence unused in tree-shaking environments
-void getBytes;
