@@ -7,9 +7,14 @@ import { xpEngine } from '@cryptra/xp';
 import { achievementService } from '@cryptra/achievements';
 import { referralService } from '@cryptra/referral';
 import { hyperliquidClient, placeMarketOrder, isAgentConfigured } from '@cryptra/hyperliquid';
-import { placeDydxOrder, isDydxAgentConfigured } from '@cryptra/perp-engine/src/agents/dydxAgent';
-import { placeGmxOrder, isGmxAgentConfigured } from '@cryptra/perp-engine/src/agents/gmxAgent';
-import { placeDriftOrder, isDriftAgentConfigured } from '@cryptra/perp-engine/src/agents/driftAgent';
+import {
+  placeDydxOrder,
+  isDydxAgentConfigured,
+  placeGmxOrder,
+  isGmxAgentConfigured,
+  placeDriftOrder,
+  isDriftAgentConfigured,
+} from '@cryptra/perp-engine';
 import {
   claimIdempotencyKey,
   completeIdempotencyKey,
@@ -46,26 +51,10 @@ export async function ordersRoutes(app: FastifyInstance) {
   app.get('/venues', async () => ({
     success: true,
     data: [
-      {
-        id: 'hyperliquid',
-        live: isAgentConfigured(),
-        signing: 'L1 EIP-712 phantom agent',
-      },
-      {
-        id: 'dydx',
-        live: isDydxAgentConfigured(),
-        signing: 'dYdX Chain LocalWallet (v4-client-js)',
-      },
-      {
-        id: 'gmx',
-        live: isGmxAgentConfigured(),
-        signing: 'Arbitrum ethers agent key',
-      },
-      {
-        id: 'drift',
-        live: isDriftAgentConfigured(),
-        signing: 'Solana keypair + Drift SDK',
-      },
+      { id: 'hyperliquid', live: isAgentConfigured(), signing: 'L1 EIP-712 phantom agent' },
+      { id: 'dydx', live: isDydxAgentConfigured(), signing: 'dYdX Chain LocalWallet (v4-client-js)' },
+      { id: 'gmx', live: isGmxAgentConfigured(), signing: 'Arbitrum ethers agent key' },
+      { id: 'drift', live: isDriftAgentConfigured(), signing: 'Solana keypair + Drift SDK' },
     ],
   }));
 
@@ -153,7 +142,6 @@ async function dispatchVenue(data: z.infer<typeof placeOrderSchema>) {
         message: agentResult.message,
         externalId: undefined as string | undefined,
       },
-      exchangeResponse: agentResult.exchangeResponse,
     };
   }
 
@@ -175,7 +163,6 @@ async function dispatchVenue(data: z.infer<typeof placeOrderSchema>) {
         message: r.message,
         externalId: r.externalId,
       },
-      exchangeResponse: r.exchangeResponse,
     };
   }
 
@@ -195,7 +182,6 @@ async function dispatchVenue(data: z.infer<typeof placeOrderSchema>) {
         message: r.message,
         externalId: r.externalId,
       },
-      exchangeResponse: r.exchangeResponse,
     };
   }
 
@@ -215,7 +201,6 @@ async function dispatchVenue(data: z.infer<typeof placeOrderSchema>) {
         message: r.message,
         externalId: r.externalId,
       },
-      exchangeResponse: r.exchangeResponse,
     };
   }
 
@@ -246,7 +231,6 @@ async function placeOrderCore(
       agentInfo = dispatched.agent;
     } catch (e) {
       if (e instanceof AppError) throw e;
-      // fall through with tracking
       hlMeta = { source: 'error', agent: 'off' };
       agentInfo = {
         mode: 'skipped',
@@ -309,7 +293,7 @@ async function placeOrderCore(
     await achievementService.tryUnlock(userId, 'FIRST_TRADE');
     await referralService.activate(userId);
   } catch {
-    // side effects must not fail the order response
+    /* ignore */
   }
 
   return {
