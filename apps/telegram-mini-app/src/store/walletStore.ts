@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { connectMetaMask as requestMetaMask, isMetaMaskAvailable } from '../lib/ethereum';
+import { connectMetaMask as requestMetaMask, isMetaMaskAvailable, getEthereum } from '../lib/ethereum';
 import { connectPhantom as requestPhantom, isPhantomAvailable } from '../lib/solana';
 import { isLikelyTonAddress, tryConnectTonInjected } from '../lib/ton';
 
@@ -8,6 +8,8 @@ export type WalletProviderId =
   | 'metamask'
   | 'phantom'
   | 'ton'
+  | 'trust'
+  | 'walletconnect'
   | 'demo'
   | string
   | null;
@@ -33,6 +35,8 @@ interface WalletActions {
   connectMetaMask: () => Promise<void>;
   connectPhantom: () => Promise<void>;
   connectTon: (address?: string) => Promise<void>;
+  connectTrust: () => Promise<void>;
+  connectWalletConnect: () => Promise<void>;
   connectDemo: () => Promise<void>;
   disconnect: () => void;
   reset: () => void;
@@ -84,6 +88,39 @@ export const useWalletStore = create<WalletState & WalletActions>()(
           chainId,
           chainType: 'EVM',
           provider: 'metamask',
+        });
+      },
+
+      connectTrust: async () => {
+        // Trust injects window.ethereum (often isTrust)
+        const eth = getEthereum();
+        if (!eth) {
+          throw new Error('Trust Wallet not detected. Open in Trust dApp browser.');
+        }
+        const { address, chainId } = await requestMetaMask();
+        set({
+          isConnected: true,
+          address,
+          chainId,
+          chainType: 'EVM',
+          provider: eth.isTrust ? 'trust' : 'metamask',
+        });
+      },
+
+      connectWalletConnect: async () => {
+        // Fallback: use injected provider if present (WalletConnect via wallet browser)
+        if (!isMetaMaskAvailable()) {
+          throw new Error(
+            'WalletConnect requires VITE_WC_PROJECT_ID + @walletconnect/ethereum-provider, or open in a WC-compatible wallet browser.',
+          );
+        }
+        const { address, chainId } = await requestMetaMask();
+        set({
+          isConnected: true,
+          address,
+          chainId,
+          chainType: 'EVM',
+          provider: 'walletconnect',
         });
       },
 
